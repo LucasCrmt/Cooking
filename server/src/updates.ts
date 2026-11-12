@@ -4,7 +4,7 @@
 
 import { APP_VERSION } from "./config.ts";
 
-const REPO = "PaulBayfield/cooking.bayfield.dev";
+const REPO = "LucasCrmt/cooking";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 const CACHE_MS = 6 * 60 * 60_000;
 /** After a failed lookup, wait a little before asking GitHub again. */

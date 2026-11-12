@@ -8,7 +8,6 @@
   <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19" />
   <img src="https://img.shields.io/badge/Node-24-339933" alt="Node 24" />
   <img src="https://img.shields.io/badge/Postgres-17-336791" alt="Postgres 17" />
-  <a href="https://cooking.bayfield.dev"><img src="https://img.shields.io/badge/live-cooking.bayfield.dev-e0703a" alt="cooking.bayfield.dev" /></a>
 </div>
 
 ## ⚠️ • Disclaimer
@@ -93,7 +92,7 @@ flowchart LR
 | Server | Node 24 running `.ts` directly, Hono 4 |
 | Database | PostgreSQL 17 (postgres.js), embedded-postgres for development |
 | Auth | OIDC with Authentik, no app passwords |
-| Container | One image on `ghcr.io/paulbayfield/cooking.bayfield.dev` |
+| Container | One image on `ghcr.io/lucascrmt/cooking` |
 
 ## 🚀 • Getting Started
 
@@ -182,11 +181,11 @@ cp server/.env.example server/.env    # PUBLIC_URL, OIDC_*
 docker compose up -d
 ```
 
-Put it behind your reverse proxy: `https://cooking.bayfield.dev → localhost:8792`.
+Put it behind your reverse proxy: `https://cooking.example.com → localhost:8792`.
 
 ## 🙏 • Credits
 
-By Paul Bayfield.
+By [LucasCrmt](https://github.com/LucasCrmt), built on the shared shell of [Paul Bayfield](https://github.com/PaulBayfield)'s bayfield.dev apps.
 
 | Dependency | Use |
 |---|---|
@@ -199,7 +198,8 @@ By Paul Bayfield.
 
 ## 📜 • License
 
-Copyright (C) 2026 Paul Bayfield
+Copyright (C) 2026 LucasCrmt
+Based on the bayfield.dev apps, Copyright (C) 2026 Paul Bayfield
 
 This program is free software: you can redistribute it and/or modify it under the terms of the
 GNU Affero General Public License as published by the Free Software Foundation, either version 3

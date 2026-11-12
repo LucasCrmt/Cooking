@@ -278,13 +278,13 @@ export function AboutPage({ updates }: { updates: UpdateCheck }) {
           )}
         </Row>
         <Row label={t("allVersions")}>
-          <a className="text-button" href={status?.releasesUrl ?? "https://github.com/PaulBayfield/cooking.bayfield.dev/releases"} target="_blank" rel="noreferrer">
+          <a className="text-button" href={status?.releasesUrl ?? "https://github.com/LucasCrmt/cooking/releases"} target="_blank" rel="noreferrer">
             <ExternalLink size={14} />
             {t("releaseNotes")}
           </a>
         </Row>
         <Row label={t("sourceCode")}>
-          <a className="text-button" href="https://github.com/PaulBayfield/cooking.bayfield.dev" target="_blank" rel="noreferrer">
+          <a className="text-button" href="https://github.com/LucasCrmt/cooking" target="_blank" rel="noreferrer">
             <ExternalLink size={14} />
             GitHub
           </a>

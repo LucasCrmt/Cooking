@@ -348,7 +348,7 @@ api.get("/export", async (c) => {
            ingredients, steps, notes, sources, author, created_at, updated_at
     FROM recipes ${mine ? sql`WHERE user_id = ${user.id}` : sql``} ORDER BY created_at`;
   c.header("Content-Disposition", `attachment; filename="recipes-${new Date().toISOString().slice(0, 10)}.json"`);
-  return c.json({ app: "cooking.bayfield.dev", version: APP_VERSION, exportedAt: new Date(), recipes });
+  return c.json({ app: "cooking", version: APP_VERSION, exportedAt: new Date(), recipes });
 });
 
 // --- Sessions ---

@@ -1,6 +1,6 @@
 services:
   cooking:
-    image: ghcr.io/paulbayfield/cooking.bayfield.dev:latest
+    image: ghcr.io/lucascrmt/cooking:latest
     build: .
     env_file: server/.env
     environment:
