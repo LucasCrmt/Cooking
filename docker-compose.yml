@@ -1,0 +1,32 @@
+services:
+  cooking:
+    image: ghcr.io/paulbayfield/cooking.bayfield.dev:latest
+    build: .
+    env_file: server/.env
+    environment:
+      DATABASE_URL: postgres://cooking:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@cooking-db:5432/cooking
+      DATABASE_POOL_MAX: "10"
+    ports:
+      - "8792:8792"
+    depends_on:
+      cooking-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cooking-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cooking
+      POSTGRES_USER: cooking
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - cooking-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cooking -d cooking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  cooking-db:
