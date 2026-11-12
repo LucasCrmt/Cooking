@@ -7,9 +7,9 @@ import { useApp, type EditorState } from "../lib/app";
 import { useApi } from "../lib/hooks";
 import { counts, sourceLabel, type SortKey } from "../lib/recipes";
 import { useSettings } from "../lib/settings";
-import type { StringKey } from "../lib/i18n";
+import type { Lang, StringKey } from "../lib/i18n";
 import { useToast } from "./common";
-import { Check, ImageIcon, Plus, Trash, Upload, X } from "./icons";
+import { Check, ChevronDown, ImageIcon, Plus, Trash, Upload, X } from "./icons";
 import { SourceIcon, SourceList } from "./recipe-bits";
 
 export function RecipePanel() {
@@ -183,8 +183,66 @@ async function downscale(file: File): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.85);
 }
 
-function RecipeEditor({ state }: { state: EditorState }) {
+const CATEGORIES: Record<Lang, string[]> = {
+  fr: ["Apéritif", "Entrée", "Plat principal", "Accompagnement", "Soupe", "Salade", "Dessert", "Goûter", "Petit-déjeuner", "Boisson", "Sauce"],
+  en: ["Appetizer", "Starter", "Main course", "Side dish", "Soup", "Salad", "Dessert", "Snack", "Breakfast", "Drink", "Sauce"],
+};
+const CUISINES: Record<Lang, string[]> = {
+  fr: ["Française", "Italienne", "Espagnole", "Grecque", "Méditerranéenne", "Moyen-Orient", "Marocaine", "Indienne", "Chinoise", "Japonaise", "Thaïlandaise", "Coréenne", "Vietnamienne", "Mexicaine", "Américaine"],
+  en: ["French", "Italian", "Spanish", "Greek", "Mediterranean", "Middle Eastern", "Moroccan", "Indian", "Chinese", "Japanese", "Thai", "Korean", "Vietnamese", "Mexican", "American"],
+};
+
+/** The presets in their order, then the cookbook's own values (most used first) that aren't presets. */
+const withPresets = (presets: string[], used: [string, number][]) => [...presets, ...used.map(([v]) => v).filter((v) => !presets.some((p) => p.toLowerCase() === v.toLowerCase()))];
+
+/** A dropdown of `options`, with "None" and "Other…" (a text field, for anything not listed). */
+function ChoiceSelect({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {
   const { t } = useSettings();
+  const listed = !value || options.includes(value);
+  const [custom, setCustom] = useState(!listed);
+  if (custom) {
+    return (
+      <span className="choice-custom">
+        <input className="text-field" value={value} maxLength={60} placeholder={t("otherPlaceholder")} onChange={(e) => onChange(e.target.value)} autoFocus={listed} />
+        <button
+          type="button"
+          className="icon-button small"
+          title={t("backToList")}
+          aria-label={t("backToList")}
+          onClick={() => {
+            setCustom(false);
+            if (!options.includes(value)) onChange("");
+          }}
+        >
+          <ChevronDown size={14} />
+        </button>
+      </span>
+    );
+  }
+  return (
+    <select
+      className="choice-select"
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === "\u0000other") {
+          setCustom(true);
+          onChange("");
+        } else onChange(e.target.value);
+      }}
+    >
+      <option value="">{t("noneChoice")}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+      <option value={"\u0000other"}>{t("otherChoice")}</option>
+    </select>
+  );
+}
+
+function RecipeEditor({ state }: { state: EditorState }) {
+  const { t, lang } = useSettings();
   const { closeEditor, reloadRecipes, navigate, recipes } = useApp();
   const toast = useToast();
   const init = state.initial;
@@ -214,8 +272,9 @@ function RecipeEditor({ state }: { state: EditorState }) {
   const [error, setError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
-  const categories = useMemo(() => counts(recipes ?? [], (r) => [r.category]).map(([c]) => c), [recipes]);
-  const cuisines = useMemo(() => counts(recipes ?? [], (r) => [r.cuisine]).map(([c]) => c), [recipes]);
+  // The usual choices, then whatever the cookbook already uses (imports bring their own words).
+  const categories = useMemo(() => withPresets(CATEGORIES[lang], counts(recipes ?? [], (r) => [r.category])), [recipes, lang]);
+  const cuisines = useMemo(() => withPresets(CUISINES[lang], counts(recipes ?? [], (r) => [r.cuisine])), [recipes, lang]);
 
   const save = async () => {
     setBusy(true);
@@ -346,19 +405,9 @@ function RecipeEditor({ state }: { state: EditorState }) {
         {field("description", <textarea className="text-field" rows={2} value={form.description} maxLength={2000} onChange={(e) => set({ description: e.target.value })} />)}
 
         <div className="field-row">
-          {field("category", <input className="text-field" list="recipe-categories" value={form.category} maxLength={60} onChange={(e) => set({ category: e.target.value })} />)}
-          {field("cuisine", <input className="text-field" list="recipe-cuisines" value={form.cuisine} maxLength={60} onChange={(e) => set({ cuisine: e.target.value })} />)}
+          {field("category", <ChoiceSelect value={form.category} options={categories} onChange={(category) => set({ category })} />)}
+          {field("cuisine", <ChoiceSelect value={form.cuisine} options={cuisines} onChange={(cuisine) => set({ cuisine })} />)}
         </div>
-        <datalist id="recipe-categories">
-          {categories.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-        <datalist id="recipe-cuisines">
-          {cuisines.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
 
         {field("tags", <input className="text-field" value={form.tags} placeholder={t("tagsPlaceholder")} onChange={(e) => set({ tags: e.target.value })} />)}
 

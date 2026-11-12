@@ -778,3 +778,20 @@ a.source-chip:hover {
 .dialog-form > input.text-field {
   width: 100%;
 }
+
+/* --- Category / cuisine dropdowns --- */
+
+.editor-form .choice-select {
+  width: 100%;
+  font-weight: 400;
+  color: var(--text);
+}
+.choice-custom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.choice-custom .text-field {
+  flex: 1;
+  min-width: 0;
+}
