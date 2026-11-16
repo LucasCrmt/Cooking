@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, type Me, type RecipeSummary, type ServerInfo } from "./lib/api";
+import { api, ApiError, type Me, type RecipeSummary, type ServerInfo, type SharedItem } from "./lib/api";
 import { AppContext, type AppContextValue, type EditorState, type SettingsPage } from "./lib/app";
 import { MOBILE_QUERY, invalidate, useApi, useMediaQuery } from "./lib/hooks";
 import { blankRecipe } from "./lib/recipes";
@@ -14,6 +14,8 @@ import { RecipePanel } from "./components/RecipePanel";
 import { ImportDialog } from "./components/ImportDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { SearchDialog } from "./components/SearchDialog";
+import { SharedPage } from "./components/SharedPage";
+import { PublicRecipePage } from "./components/PublicRecipePage";
 
 export default function App() {
   return (
@@ -26,6 +28,13 @@ export default function App() {
 }
 
 function Root() {
+  // A public link (/s/<token>) shows the recipe to anyone, signed in or not.
+  const publicToken = /^\/s\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)?.[1];
+  if (publicToken) return <PublicRecipePage token={publicToken} />;
+  return <SignedInRoot />;
+}
+
+function SignedInRoot() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   // Set by the server when single sign-on fails (it redirects back with ?signin_error=…).
@@ -76,6 +85,7 @@ function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => 
   });
   const server = useApi<ServerInfo>("/app/server").data;
   const recipesReq = useApi<RecipeSummary[]>("/app/recipes", true);
+  const sharedReq = useApi<SharedItem[]>("/app/shared", true);
 
   useEffect(() => {
     const q = new URLSearchParams(location.search);
@@ -112,6 +122,11 @@ function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => 
       invalidate("/app/recipes");
       recipesReq.reload();
       window.dispatchEvent(new Event("cooking:changed"));
+    },
+    shared: sharedReq.data,
+    reloadShared: () => {
+      invalidate("/app/shared");
+      sharedReq.reload();
     },
     openSettings: (page) => setSettingsPage(page ?? "profile"),
     signOut: () => {
@@ -204,7 +219,9 @@ function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => 
             <Sidebar />
           </>
         )}
-        <main className="main">{r.name === "recipe" ? <RecipePage key={r.id} id={r.id} /> : <RecipesPage list={r.name} />}</main>
+        <main className="main">
+          {r.name === "recipe" ? <RecipePage key={r.id} id={r.id} /> : r.name === "shared" ? <SharedPage /> : <RecipesPage list={r.name} />}
+        </main>
         {panelVisible && (
           <>
             {mobile && <div className="sidebar-backdrop" onClick={togglePanel} />}

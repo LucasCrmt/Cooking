@@ -1,10 +1,10 @@
 // What every page of the signed-in app can reach: the user, navigation, the cookbook, the editor.
 
 import { createContext, useContext } from "react";
-import type { Me, RecipeFields, RecipeSummary, ServerInfo } from "./api";
+import type { Me, RecipeFields, RecipeSummary, ServerInfo, SharedItem } from "./api";
 import type { Route } from "./router";
 
-export type SettingsPage = "profile" | "preferences" | "security" | "data" | "shortcuts" | "users" | "about";
+export type SettingsPage = "profile" | "preferences" | "security" | "data" | "claude" | "shortcuts" | "users" | "about";
 
 /** What the editor in the side panel is working on. */
 export interface EditorState {
@@ -28,6 +28,9 @@ export interface AppContextValue {
   /** The whole cookbook, newest first. */
   recipes: RecipeSummary[] | undefined;
   reloadRecipes: () => void;
+  /** What others sent you ("Shared with me"), newest first. */
+  shared: SharedItem[] | undefined;
+  reloadShared: () => void;
   openSettings: (page?: SettingsPage) => void;
   signOut: () => void;
   sidebarVisible: boolean;

@@ -5,9 +5,9 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type Recipe, type RecipeFields } from "../lib/api";
 import { useApp, type EditorState } from "../lib/app";
 import { useApi } from "../lib/hooks";
-import { counts, sourceLabel, type SortKey } from "../lib/recipes";
+import { CATEGORIES, CUISINES, counts, sourceLabel, type SortKey } from "../lib/recipes";
 import { useSettings } from "../lib/settings";
-import type { Lang, StringKey } from "../lib/i18n";
+import type { StringKey } from "../lib/i18n";
 import { useToast } from "./common";
 import { Check, ChevronDown, ImageIcon, Plus, Trash, Upload, X } from "./icons";
 import { SourceIcon, SourceList } from "./recipe-bits";
@@ -182,15 +182,6 @@ async function downscale(file: File): Promise<string> {
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.85);
 }
-
-const CATEGORIES: Record<Lang, string[]> = {
-  fr: ["Apéritif", "Entrée", "Plat principal", "Accompagnement", "Soupe", "Salade", "Dessert", "Goûter", "Petit-déjeuner", "Boisson", "Sauce"],
-  en: ["Appetizer", "Starter", "Main course", "Side dish", "Soup", "Salad", "Dessert", "Snack", "Breakfast", "Drink", "Sauce"],
-};
-const CUISINES: Record<Lang, string[]> = {
-  fr: ["Française", "Italienne", "Espagnole", "Grecque", "Méditerranéenne", "Moyen-Orient", "Marocaine", "Indienne", "Chinoise", "Japonaise", "Thaïlandaise", "Coréenne", "Vietnamienne", "Mexicaine", "Américaine"],
-  en: ["French", "Italian", "Spanish", "Greek", "Mediterranean", "Middle Eastern", "Moroccan", "Indian", "Chinese", "Japanese", "Thai", "Korean", "Vietnamese", "Mexican", "American"],
-};
 
 /** The presets in their order, then the cookbook's own values (most used first) that aren't presets. */
 const withPresets = (presets: string[], used: [string, number][]) => [...presets, ...used.map(([v]) => v).filter((v) => !presets.some((p) => p.toLowerCase() === v.toLowerCase()))];

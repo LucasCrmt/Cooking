@@ -14,6 +14,7 @@ import { isIP } from "node:net";
 import { IMAGE_MAX_BYTES } from "./config.ts";
 import { HttpError, bad } from "./http.ts";
 import { cleanUrl, kindOf, parseCaption, sourceName, type Source } from "./caption.ts";
+import { looksLikeTemplate, parseTemplate, unescapeMarkdown } from "./template.ts";
 
 export interface RecipeDraft {
   title: string;
@@ -481,7 +482,9 @@ export async function importRecipe(raw: string): Promise<{ draft: RecipeDraft; p
  * A draft from text someone pasted (an Instagram caption, a message from a friend), with the
  * address it came from if given. The page's preview photo is used when the site shares one.
  */
-export async function importText(text: string, rawUrl: string | null): Promise<{ draft: RecipeDraft; partial: boolean }> {
+export async function importText(raw: string, rawUrl: string | null): Promise<{ draft: RecipeDraft; partial: boolean }> {
+  const text = unescapeMarkdown(raw);
+  if (looksLikeTemplate(text)) return fromTemplate(text, rawUrl);
   const url = rawUrl ? cleanUrl(rawUrl) : null;
   let imageUrl: string | null = null;
   let site = "";
@@ -499,3 +502,36 @@ export async function importText(text: string, rawUrl: string | null): Promise<{
   return fromCaption(text, { url, site, imageUrl });
 }
 
+
+/** Text written in the recipe template (see template.ts): every field is where it says. */
+function fromTemplate(text: string, rawUrl: string | null): { draft: RecipeDraft; partial: boolean } {
+  const t = parseTemplate(text);
+  const urls = [...(rawUrl ? [rawUrl] : []), ...t.sourceUrls].flatMap((u) => {
+    try {
+      return [cleanUrl(u)];
+    } catch {
+      return [];
+    }
+  });
+  const sources: Source[] = [...new Set(urls)].map((url) => ({ url, name: sourceName(url, "", t.author), kind: kindOf(url) }));
+  for (const name of t.sourceNames) sources.push({ url: null, name: name.slice(0, 100), kind: "other" });
+  const draft: RecipeDraft = {
+    title: t.title,
+    description: t.description,
+    category: t.category,
+    cuisine: t.cuisine,
+    tags: t.tags,
+    servings: t.servings,
+    servingsLabel: t.servingsLabel,
+    prepMinutes: t.prepMinutes,
+    cookMinutes: t.cookMinutes,
+    totalMinutes: t.totalMinutes,
+    ingredients: t.ingredients,
+    steps: t.steps,
+    notes: t.notes,
+    sources: sources.slice(0, 12),
+    author: t.author,
+    imageUrl: t.imageUrl,
+  };
+  return { draft, partial: !draft.title || draft.ingredients.length === 0 || draft.steps.length === 0 };
+}

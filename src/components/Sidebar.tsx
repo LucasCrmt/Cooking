@@ -4,7 +4,7 @@ import { blankRecipe, counts } from "../lib/recipes";
 import type { ListName } from "../lib/router";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
-import { BookOpen, ChefHat, Heart, PanelLeft, Plus, Search, Tag, Utensils } from "./icons";
+import { BookOpen, ChefHat, Heart, PanelLeft, Plus, Search, Share, Tag, Utensils } from "./icons";
 
 
 const MIN_W = 200;
@@ -14,11 +14,12 @@ const DEFAULT_W = 248;
 /** Same layout as Calendar's, Notes' and DevTime's sidebars: toggle and search on top, then the lists. */
 export function Sidebar() {
   const { t, settings } = useSettings();
-  const { route, query, navigate, recipes, toggleSidebar, openSearch, openEditor } = useApp();
+  const { route, query, navigate, recipes, shared, toggleSidebar, openSearch, openEditor } = useApp();
+  const newShared = (shared ?? []).filter((s) => !s.seenAt).length;
   const all = recipes ?? [];
   const categories = useMemo(() => counts(all, (r) => [r.category]), [all]);
   const tags = useMemo(() => counts(all, (r) => r.tags).slice(0, 20), [all]);
-  const list = route.name === "recipe" ? null : route.name;
+  const list = route.name === "recipe" || route.name === "shared" ? null : route.name;
 
   const nav: [ListName, StringKey, ReactNode, number][] = [
     ["recipes", "allRecipes", <BookOpen />, all.length],
@@ -51,6 +52,11 @@ export function Sidebar() {
             <span className="row-meta">{recipes ? n : ""}</span>
           </button>
         ))}
+        <button className={`sidebar-row${route.name === "shared" ? " active" : ""}`} onClick={() => navigate({ name: "shared" })}>
+          <Share />
+          <span className="row-label">{t("sharedWithMe")}</span>
+          {newShared > 0 ? <span className="row-badge">{newShared}</span> : <span className="row-meta">{shared?.length || ""}</span>}
+        </button>
       </nav>
 
       {/* Only the categories and tags scroll; the header and lists stay put. */}

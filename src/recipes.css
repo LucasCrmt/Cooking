@@ -762,6 +762,21 @@ a.source-chip:hover {
 .import-modes {
   align-self: flex-start;
 }
+.import-template {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+.import-template .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+.import-template .small {
+  flex-basis: 100%;
+}
 .import-modes button {
   height: 28px;
   font-size: 13px;
@@ -794,4 +809,146 @@ a.source-chip:hover {
 .choice-custom .text-field {
   flex: 1;
   min-width: 0;
+}
+
+/* --- Sharing --- */
+
+.share-section {
+  display: grid;
+  gap: 8px;
+}
+.share-section + .share-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.share-section h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.share-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.share-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.share-person input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.share-person.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.share-person:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.dialog textarea.share-note {
+  height: auto;
+  padding: 8px 10px;
+  font: inherit;
+  resize: vertical;
+}
+.share-section .dialog-actions {
+  margin-top: 0;
+}
+.share-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+code.share-link {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.row-badge {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.shared-list {
+  display: grid;
+  gap: 2px;
+}
+.shared-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 6px;
+  border-radius: 8px;
+}
+.shared-row:hover {
+  background: var(--hover);
+}
+.shared-row-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+.shared-row .recipe-image.thumb {
+  flex: none;
+}
+.shared-row-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.shared-row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shared-row.unseen .shared-row-title {
+  font-weight: 600;
+}
+.shared-row .muted.small svg {
+  vertical-align: -1px;
+}
+.shared-note {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.public-page {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.public-page .empty-state {
+  min-height: 60vh;
 }

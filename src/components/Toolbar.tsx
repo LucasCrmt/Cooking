@@ -1,5 +1,5 @@
-// The top bar, laid out like Calendar's, Notes' and DevTime's: title on the left; account, the
-// page's actions and the primary action on the right; then the side panel toggle.
+// The top bar, laid out like Calendar's, Notes' and DevTime's: title on the left; the page's
+// actions, the primary action and the account menu on the right; the side panel toggle last.
 
 import { useRef, useState, type ReactNode } from "react";
 import { useApp } from "../lib/app";
@@ -26,7 +26,6 @@ export function Toolbar({ title, loading, children }: Props) {
       <h1 className="toolbar-title">{title}</h1>
       {loading && <span className="spinner" aria-label={t("loading")} />}
       <div className="toolbar-spacer" />
-      <AccountMenu />
       {children}
       {server?.importEnabled !== false && (
         <button className="primary-button" title={`${t("importRecipe")} (I)`} onClick={() => openImport()}>
@@ -34,6 +33,7 @@ export function Toolbar({ title, loading, children }: Props) {
           <span className="hide-mobile">{t("import")}</span>
         </button>
       )}
+      <AccountMenu />
       <button
         className={`icon-button panel-toggle${panelVisible ? " active" : ""}`}
         title={`${t("togglePanel")} (.)`}

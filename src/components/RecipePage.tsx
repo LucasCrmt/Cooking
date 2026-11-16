@@ -8,15 +8,16 @@ import { useApi } from "../lib/hooks";
 import { headingText, isHeading, scaleIngredient, totalOf } from "../lib/recipes";
 import { useSettings } from "../lib/settings";
 import { ConfirmDialog, Dialog, useToast } from "./common";
+import { ShareDialog } from "./ShareDialog";
 import { Dropdown as Floating } from "./pickers";
-import { CircleCheck, Clock, ExternalLink, Flame, Minus, MoreHorizontal, Pencil, Plus, Printer, Trash, Users } from "./icons";
+import { CircleCheck, Clock, ExternalLink, Flame, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Trash, Users } from "./icons";
 import { FavoriteButton } from "./RecipesPage";
 import { RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
 
 export function RecipePage({ id }: { id: string }) {
   const { t, f, settings } = useSettings();
-  const { navigate, openEditor, reloadRecipes } = useApp();
+  const { navigate, openEditor, reloadRecipes, shared, reloadShared } = useApp();
   const toast = useToast();
   const req = useApi<Recipe>(`/app/recipes/${id}`);
   const r = req.data;
@@ -25,6 +26,14 @@ export function RecipePage({ id }: { id: string }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [addingSource, setAddingSource] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  // Opening a recipe someone sent you marks it as seen.
+  const unseen = !!shared?.some((s) => s.recipeId === id && !s.seenAt);
+  useEffect(() => {
+    if (unseen) void api("/app/shared/seen", { body: { recipeId: id } }).then(reloadShared, () => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unseen, id]);
 
   // The editor (side panel) and the list's buttons announce changes.
   useEffect(() => {
@@ -127,6 +136,10 @@ export function RecipePage({ id }: { id: string }) {
         {r && (
           <>
             <FavoriteButton recipe={r} />
+            <button className="text-button" title={t("share")} onClick={() => setSharing(true)}>
+              <Share size={14} />
+              <span className="hide-mobile">{t("share")}</span>
+            </button>
             {r.canEdit && (
               <button className="text-button" title={`${t("edit")} (E)`} onClick={edit}>
                 <Pencil size={14} />
@@ -281,6 +294,7 @@ export function RecipePage({ id }: { id: string }) {
         )}
       </div>
       {addingSource && r && <AddSourceDialog id={r.id} onClose={() => setAddingSource(false)} />}
+      {sharing && r && <ShareDialog recipe={r} onClose={() => setSharing(false)} onChanged={req.reload} />}
       {deleting && r && (
         <ConfirmDialog
           title={t("deleteRecipe")}
@@ -299,14 +313,14 @@ export function RecipePage({ id }: { id: string }) {
   );
 }
 
-const toggle = (s: Set<number>, i: number) => {
+export const toggle = (s: Set<number>, i: number) => {
   const next = new Set(s);
   if (next.has(i)) next.delete(i);
   else next.add(i);
   return next;
 };
 
-function Ingredient({ line, factor, checked, checkable, onToggle }: { line: string; factor: number; checked: boolean; checkable: boolean; onToggle: () => void }) {
+export function Ingredient({ line, factor, checked, checkable, onToggle }: { line: string; factor: number; checked: boolean; checkable: boolean; onToggle: () => void }) {
   const { f } = useSettings();
   const { quantity, rest } = useMemo(() => scaleIngredient(line, factor, f.locale), [line, factor, f.locale]);
   const text = (
@@ -327,7 +341,7 @@ function Ingredient({ line, factor, checked, checkable, onToggle }: { line: stri
 }
 
 /** Numbered steps; "#" lines are section headings and restart nothing (the numbering runs on). */
-function StepList({ steps, done, checkable, onToggle }: { steps: string[]; done: Set<number>; checkable: boolean; onToggle: (i: number) => void }) {
+export function StepList({ steps, done, checkable, onToggle }: { steps: string[]; done: Set<number>; checkable: boolean; onToggle: (i: number) => void }) {
   let n = 0;
   // The first step not done yet is the one you're on.
   const current = checkable ? steps.findIndex((s, i) => !isHeading(s) && !done.has(i)) : -1;

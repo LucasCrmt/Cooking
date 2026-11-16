@@ -117,6 +117,31 @@ const MIGRATIONS: string[] = [
   ALTER TABLE recipes DROP COLUMN source_url, DROP COLUMN source_name;
   CREATE INDEX recipes_sources ON recipes USING gin (sources jsonb_path_ops);
   `,
+  /* 3: access tokens for the MCP server (Claude reading and adding recipes); only their SHA-256 is kept */ `
+  CREATE TABLE api_tokens (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name text NOT NULL DEFAULT '',
+    hint text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz
+  );
+  CREATE INDEX api_tokens_user ON api_tokens(user_id);
+  `,
+  /* 4: sharing. A recipe sent to someone in the household (with a note) shows in their "Shared with me";
+        a public link (share_token) shows it read-only to anyone who has it, without an account */ `
+  CREATE TABLE recipe_shares (
+    id bigserial PRIMARY KEY,
+    recipe_id bigint NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    from_user text REFERENCES users(id) ON DELETE SET NULL,
+    to_user text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    note text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    seen_at timestamptz
+  );
+  CREATE INDEX recipe_shares_to ON recipe_shares(to_user, created_at DESC);
+  ALTER TABLE recipes ADD COLUMN share_token text UNIQUE;
+  `,
 ];
 
 export async function migrate() {

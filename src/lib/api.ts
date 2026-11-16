@@ -128,7 +128,37 @@ export interface Recipe extends RecipeFields {
   lastCookedAt: string | null;
   addedBy: string | null;
   canEdit: boolean;
+  /** The public link's token (/s/<token>), when it's on. */
+  shareToken: string | null;
   createdAt: string;
+  updatedAt: string;
+}
+
+/** Someone in the household, to send a recipe to. */
+export interface Person {
+  id: string;
+  name: string;
+}
+
+/** A recipe someone sent you (GET /app/shared). */
+export interface SharedItem {
+  id: string;
+  recipeId: string;
+  title: string;
+  hasImage: boolean;
+  imageVersion: number;
+  category: string;
+  totalMinutes: number | null;
+  fromName: string | null;
+  note: string;
+  createdAt: string;
+  seenAt: string | null;
+}
+
+/** A recipe as its public link shows it (GET /public/recipes/:token). */
+export interface PublicRecipe extends RecipeFields {
+  hasImage: boolean;
+  imageVersion: number;
   updatedAt: string;
 }
 

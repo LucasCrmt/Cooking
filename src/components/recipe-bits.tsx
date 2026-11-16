@@ -40,10 +40,19 @@ export function SourceList({ sources }: { sources: Source[] }) {
 }
 
 /** The recipe's photo, or a warm tint with a hat when it has none (or it fails to load). */
-export function RecipeImage({ recipe, className = "" }: { recipe: { id: string; title: string; hasImage: boolean; imageVersion: number }; className?: string }) {
+export function RecipeImage({
+  recipe,
+  className = "",
+  src,
+}: {
+  recipe: { id: string; title: string; hasImage: boolean; imageVersion: number };
+  className?: string;
+  /** Where the photo is, if not at the signed-in address (the public page). */
+  src?: string;
+}) {
   const [failed, setFailed] = useState(false);
   if (recipe.hasImage && !failed) {
-    return <img className={`recipe-image ${className}`} src={imageSrc(recipe)} alt="" loading="lazy" onError={() => setFailed(true)} />;
+    return <img className={`recipe-image ${className}`} src={src ?? imageSrc(recipe)} alt="" loading="lazy" onError={() => setFailed(true)} />;
   }
   return (
     <div className={`recipe-image placeholder ${className}`} style={{ "--hue": hueOf(recipe.title) } as CSSProperties} aria-hidden="true">

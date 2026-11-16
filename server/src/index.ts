@@ -11,6 +11,8 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { DEV_LOGIN_USER, DIST_DIR, IMAGE_MAX_BYTES, IMPORT_ENABLED, PORT, PUBLIC_URL, oidc } from "./config.ts";
 import { migrate, sql } from "./db.ts";
 import { api } from "./api.ts";
+import { mcp } from "./mcp.ts";
+import { publicRoutes } from "./public.ts";
 import { authRoutes, sameOrigin } from "./auth.ts";
 import { HttpError } from "./http.ts";
 
@@ -60,7 +62,13 @@ app.get("/api/health", async (c) => {
 
 app.route("/api/auth", authRoutes);
 app.route("/api/app", api);
+app.route("/api/public", publicRoutes);
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
+
+// The MCP server, for Claude: token-authenticated, so it skips the cookie checks above.
+app.use("/mcp/*", bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: "Request too large" }, 413) }));
+app.use("/mcp", bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: "Request too large" }, 413) }));
+app.route("/mcp", mcp);
 
 if (indexHtml) {
   const index = indexHtml;
@@ -90,4 +98,5 @@ serve({ fetch: app.fetch, port: PORT }, ({ port }) => {
   console.log(`Cooking on http://localhost:${port} (public URL ${PUBLIC_URL})`);
   console.log(`  sign-in: ${[oidc && `SSO (${oidc.name})`, DEV_LOGIN_USER && `development sign-in as ${DEV_LOGIN_USER}`].filter(Boolean).join(", ")}`);
   console.log(`  recipe import: ${IMPORT_ENABLED ? "on" : "off (IMPORT_ENABLED=false)"}`);
+  console.log(`  MCP server for Claude: ${PUBLIC_URL}/mcp`);
 });

@@ -6,14 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError, type ImportResult } from "../lib/api";
 import { useApp } from "../lib/app";
 import { useSettings } from "../lib/settings";
+import { recipeTemplate, aiPrompt } from "../lib/template";
 import { Dialog, Spinner, useToast } from "./common";
-import { Clock, Download, FileText, ImageIcon, Info, LinkIcon, Users } from "./icons";
+import { Clock, Copy, Download, FileText, ImageIcon, Info, LinkIcon, Users } from "./icons";
 import { SourceIcon } from "./recipe-bits";
 
 type Mode = "link" | "text";
 
 export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl: string; initialText?: string; onClose: () => void }) {
-  const { t, f } = useSettings();
+  const { t, f, lang } = useSettings();
   const { navigate, openEditor, reloadRecipes } = useApp();
   const toast = useToast();
   const [mode, setMode] = useState<Mode>(initialText ? "text" : "link");
@@ -137,6 +138,30 @@ export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl:
             ) : (
               <p className="dialog-text">{t("importTextHint")}</p>
             )}
+            <div className="import-template">
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => {
+                  setText(recipeTemplate(lang));
+                  setResult(null);
+                }}
+              >
+                <FileText size={13} />
+                {t("useTemplate")}
+              </button>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(aiPrompt(lang)).then(() => toast(t("aiPromptCopied")));
+                }}
+              >
+                <Copy size={13} />
+                {t("copyAiPrompt")}
+              </button>
+              <span className="small muted">{t("templateHint")}</span>
+            </div>
             <textarea
               className="text-field import-text"
               rows={9}

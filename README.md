@@ -36,6 +36,7 @@ editable by whoever added them (and admins), while favourites, ratings and "I co
 are personal.
 
 - **Import from anywhere**: a recipe site's link, a video (YouTube, TikTok, Instagram: the recipe is in the caption), or pasted text. Check the draft, save. The photo is copied to the server.
+- **Share**: send a recipe to someone in the household with a note (it lands in their "Shared with me", with a count of new ones), or turn on a public link (`/s/<token>`) that shows it read-only to anyone, without an account, until you turn it off.
 - **Several sources per recipe**: the blog, the video it comes from, "Grandma's notebook", each with its icon; filter the cookbook by source.
 - **Cook from it**: servings stepper that rescales quantities (`200 g` → `250 g`, `½` → `¾`), tick off ingredients and steps, the screen stays on.
 - **Find it again**: categories, tags, cuisines, "ready in under 30 min", favourites, "not cooked yet", and a `Ctrl+K` search that also looks inside ingredients ("poireaux").
@@ -57,8 +58,19 @@ your own browser and passes along in the URL fragment (never sent to a server). 
 "Pour la pâte :" sub-headings), servings and times, turns hashtags into tags and drops the "follow me / link in bio" outro.
 The server never impersonates a crawler to get around a site's sign-in wall.
 
-Ways in: the **Import** button (`I`, link or text), **pasting a link or a recipe's text** anywhere in the app, or the
-**bookmarklet** from Settings → Data (one click from the recipe page or video).
+**The template.** Text written in the recipe template (Markdown with a front matter: `title`, `category`, `cuisine`,
+`tags`, `servings`, `prep_time`, `cook_time`, `author`, `source`, then `## Ingrédients` / `## Préparation` with `###`
+sub-sections and `## Notes`) fills every field, nothing guessed (`server/src/template.ts`). The text tab of the import
+dialog fills it in for you, or copies a prompt to give an AI with a recipe: paste its answer back.
+
+**Claude (MCP).** `/mcp` is an [MCP](https://modelcontextprotocol.io) server (streamable HTTP, stateless) so Claude can
+search the cookbook, read recipes, import from a link or text and add or change recipes while you chat. Each person
+creates an access token in Settings → Claude, which shows the connector address for Claude.ai / Claude Desktop
+(`https://cooking.example.com/mcp/<token>`) and the Claude Code command (`Authorization: Bearer <token>` header).
+Recipes are added in that person's name; only the token's SHA-256 is stored.
+
+Ways in: the **Import** button (`I`, link or text), **pasting a link or a recipe's text** anywhere in the app, the
+**bookmarklet** from Settings → Data (one click from the recipe page or video), or **Claude**.
 
 The fetch refuses private and local addresses (no reaching the host's network through it),
 non-standard ports and credentials in URLs, re-checks every redirect, caps pages at 4 MB and

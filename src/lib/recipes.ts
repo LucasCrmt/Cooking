@@ -2,6 +2,7 @@
 
 import type { RecipeFields, RecipeSummary } from "./api";
 import type { ListName } from "./router";
+import type { Lang } from "./i18n";
 
 const FRACTIONS: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛": 0.125 };
 const NICE: [number, string][] = [
@@ -125,3 +126,13 @@ export function hueOf(s: string): number {
   for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
   return h;
 }
+
+/** The usual categories and cuisines, offered by the editor and named in the import template. */
+export const CATEGORIES: Record<Lang, string[]> = {
+  fr: ["Apéritif", "Entrée", "Plat principal", "Accompagnement", "Soupe", "Salade", "Dessert", "Goûter", "Petit-déjeuner", "Boisson", "Sauce"],
+  en: ["Appetizer", "Starter", "Main course", "Side dish", "Soup", "Salad", "Dessert", "Snack", "Breakfast", "Drink", "Sauce"],
+};
+export const CUISINES: Record<Lang, string[]> = {
+  fr: ["Française", "Italienne", "Espagnole", "Grecque", "Méditerranéenne", "Moyen-Orient", "Marocaine", "Indienne", "Chinoise", "Japonaise", "Thaïlandaise", "Coréenne", "Vietnamienne", "Mexicaine", "Américaine"],
+  en: ["French", "Italian", "Spanish", "Greek", "Mediterranean", "Middle Eastern", "Moroccan", "Indian", "Chinese", "Japanese", "Thai", "Korean", "Vietnamese", "Mexican", "American"],
+};

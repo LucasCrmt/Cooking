@@ -4,7 +4,7 @@ import { Hono, type Context } from "hono";
 import { sql } from "./db.ts";
 import { APP_VERSION, IMAGE_MAX_BYTES, IMPORT_ENABLED, UPDATE_CHECK, oidc } from "./config.ts";
 import { requireAdmin, requireUser, signOutEverywhere, type AppEnv } from "./auth.ts";
-import { sha256 } from "./crypto.ts";
+import { randomToken, sha256 } from "./crypto.ts";
 import { HttpError, bad, body, rateLimit, str } from "./http.ts";
 import { fetchImage, importRecipe, importText, sniffImage } from "./importer.ts";
 import { cleanUrl, kindOf, sourceName, type Source } from "./caption.ts";
@@ -16,7 +16,7 @@ api.use("*", requireUser);
 
 // --- Recipes ---
 
-interface RecipeRow {
+export interface RecipeRow {
   id: string;
   userId: string | null;
   title: string;
@@ -40,7 +40,7 @@ interface RecipeRow {
   updatedAt: Date;
 }
 
-const canEdit = (user: User, r: Pick<RecipeRow, "userId">) => user.isAdmin || r.userId === user.id || r.userId === null;
+export const canEdit = (user: User, r: Pick<RecipeRow, "userId">) => user.isAdmin || r.userId === user.id || r.userId === null;
 
 /** A recipe id from the path, or 404. */
 async function recipeOr404(c: Context<AppEnv>): Promise<RecipeRow> {
@@ -65,7 +65,7 @@ const lines = (v: unknown, maxLines: number, maxLen: number): string[] =>
     .slice(0, maxLines);
 
 /** The editable fields of a recipe, checked. */
-function recipeInput(b: Record<string, unknown>) {
+export function recipeInput(b: Record<string, unknown>) {
   const title = str(b.title, 200);
   if (!title) throw bad("A recipe needs a title");
   const tags = [...new Set(lines(b.tags, 20, 40).map((t) => t.toLowerCase()))];
@@ -112,7 +112,7 @@ function sourceInput(v: unknown): Source | null {
  * The photo part of a create/update: `imageUrl` (fetched now, e.g. from an import),
  * `imageData` (a data: URL from an upload) or `removeImage`. Undefined: leave it as is.
  */
-async function imageInput(b: Record<string, unknown>): Promise<{ mime: string; data: Buffer } | null | undefined> {
+export async function imageInput(b: Record<string, unknown>): Promise<{ mime: string; data: Buffer } | null | undefined> {
   if (b.removeImage === true) return null;
   if (typeof b.imageData === "string" && b.imageData) {
     const m = /^data:[\w/+.-]+;base64,(.+)$/s.exec(b.imageData);
@@ -130,7 +130,7 @@ async function imageInput(b: Record<string, unknown>): Promise<{ mime: string; d
   return undefined;
 }
 
-async function saveImage(recipeId: string, image: { mime: string; data: Buffer } | null) {
+export async function saveImage(recipeId: string, image: { mime: string; data: Buffer } | null) {
   if (image === null) {
     await sql`DELETE FROM recipe_images WHERE recipe_id = ${recipeId}`;
     await sql`UPDATE recipes SET has_image = false, image_version = image_version + 1 WHERE id = ${recipeId}`;
@@ -192,9 +192,8 @@ api.get("/recipes/:id", async (c) => {
   return c.json({ ...r, ...extra, canEdit: canEdit(user, r) });
 });
 
-api.post("/recipes", async (c) => {
-  const user = c.get("user");
-  const b = await body(c);
+/** Adds a recipe for `user` (from the app or the MCP server). */
+export async function createRecipe(user: User, b: Record<string, unknown>): Promise<{ id: string; warning?: string }> {
   const input = recipeInput(b);
   // A photo that can't be fetched shouldn't lose the recipe: save it and say so.
   let warning: string | undefined;
@@ -207,8 +206,10 @@ api.post("/recipes", async (c) => {
   }
   const [{ id }] = await sql<{ id: string }[]>`INSERT INTO recipes ${sql({ ...input, userId: user.id })} RETURNING id`;
   if (image) await saveImage(id, image);
-  return c.json({ id, warning });
-});
+  return { id, warning };
+}
+
+api.post("/recipes", async (c) => c.json(await createRecipe(c.get("user"), await body(c))));
 
 api.put("/recipes/:id", async (c) => {
   const user = c.get("user");
@@ -296,6 +297,68 @@ api.post("/recipes/:id/sources", async (c) => {
   return c.json({ ok: true });
 });
 
+// --- Sharing ---
+
+/** The other members of the household, to send a recipe to. */
+api.get("/people", async (c) =>
+  c.json(await sql`SELECT id, coalesce(nullif(name, ''), id) AS name FROM users WHERE id <> ${c.get("user").id} ORDER BY lower(coalesce(nullif(name, ''), id))`),
+);
+
+/** Sends a recipe to some members, with a note: it shows in their "Shared with me". */
+api.post("/recipes/:id/share", async (c) => {
+  const user = c.get("user");
+  const r = await recipeOr404(c);
+  rateLimit(c, `share:${user.id}`, 60, 10 * 60_000);
+  const b = await body(c);
+  const to = [...new Set(lines(b.to, 50, 63))].filter((id) => id !== user.id);
+  if (!to.length) throw bad("Choose who to send it to");
+  const note = str(b.note, 500);
+  const known = await sql<{ id: string }[]>`SELECT id FROM users WHERE id IN ${sql(to)}`;
+  if (known.length !== to.length) throw bad("Someone in that list doesn't have an account");
+  await sql`INSERT INTO recipe_shares ${sql(known.map((u) => ({ recipeId: r.id, fromUser: user.id, toUser: u.id, note })))}`;
+  return c.json({ ok: true, sent: known.length });
+});
+
+/** What others sent you, newest first. */
+api.get("/shared", async (c) =>
+  c.json(
+    await sql`
+      SELECT s.id, s.recipe_id, s.note, s.created_at, s.seen_at, r.title, r.has_image, r.image_version, r.category, r.total_minutes,
+             coalesce(nullif(u.name, ''), u.id) AS from_name
+      FROM recipe_shares s
+      JOIN recipes r ON r.id = s.recipe_id
+      LEFT JOIN users u ON u.id = s.from_user
+      WHERE s.to_user = ${c.get("user").id}
+      ORDER BY s.created_at DESC
+      LIMIT 200`,
+  ),
+);
+
+/** Marks what was sent to you as seen (all of it, or one recipe's when opening it). */
+api.post("/shared/seen", async (c) => {
+  const b = await body(c);
+  const recipeId = typeof b.recipeId === "string" && /^\d{1,18}$/.test(b.recipeId) ? b.recipeId : null;
+  await sql`
+    UPDATE recipe_shares SET seen_at = now()
+    WHERE to_user = ${c.get("user").id} AND seen_at IS NULL ${recipeId ? sql`AND recipe_id = ${recipeId}` : sql``}`;
+  return c.json({ ok: true });
+});
+
+api.delete("/shared/:id", async (c) => {
+  if (!/^\d{1,18}$/.test(c.req.param("id"))) throw new HttpError(404, "Not found");
+  await sql`DELETE FROM recipe_shares WHERE id = ${c.req.param("id")} AND to_user = ${c.get("user").id}`;
+  return c.json({ ok: true });
+});
+
+/** Turns the public link on (a new address each time) or off. Anyone in the household can. */
+api.put("/recipes/:id/link", async (c) => {
+  const r = await recipeOr404(c);
+  const on = (await body(c)).on === true;
+  const token = on ? randomToken(18) : null;
+  await sql`UPDATE recipes SET share_token = ${token} WHERE id = ${r.id}`;
+  return c.json({ shareToken: token });
+});
+
 // --- Profile & preferences ---
 
 /** Name and email from a request body, checked: for the profile and for admins. */
@@ -349,6 +412,29 @@ api.get("/export", async (c) => {
     FROM recipes ${mine ? sql`WHERE user_id = ${user.id}` : sql``} ORDER BY created_at`;
   c.header("Content-Disposition", `attachment; filename="recipes-${new Date().toISOString().slice(0, 10)}.json"`);
   return c.json({ app: "cooking", version: APP_VERSION, exportedAt: new Date(), recipes });
+});
+
+// --- Access tokens (the MCP server: Claude reading and adding recipes) ---
+
+api.get("/tokens", async (c) =>
+  c.json(await sql`SELECT id, name, hint, created_at, last_used_at FROM api_tokens WHERE user_id = ${c.get("user").id} ORDER BY created_at DESC`),
+);
+
+/** A new token, shown this once: only its hash is stored. */
+api.post("/tokens", async (c) => {
+  const user = c.get("user");
+  const name = str((await body(c)).name, 60) || "Claude";
+  const [{ count }] = await sql<{ count: number }[]>`SELECT count(*)::int AS count FROM api_tokens WHERE user_id = ${user.id}`;
+  if (count >= 20) throw bad("That's a lot of tokens: revoke some first");
+  const token = `ck_${randomToken(32)}`;
+  const id = sha256(token);
+  await sql`INSERT INTO api_tokens (id, user_id, name, hint) VALUES (${id}, ${user.id}, ${name}, ${token.slice(-4)})`;
+  return c.json({ id, token });
+});
+
+api.delete("/tokens/:id", async (c) => {
+  await sql`DELETE FROM api_tokens WHERE id = ${c.req.param("id")} AND user_id = ${c.get("user").id}`;
+  return c.json({ ok: true });
 });
 
 // --- Sessions ---

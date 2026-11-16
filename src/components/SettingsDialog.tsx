@@ -2,9 +2,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useApp, type SettingsPage } from "../lib/app";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
-import { Database, Info, Keyboard, Shield, Sliders, UserIcon, Users, X } from "./icons";
+import { Database, Info, Keyboard, Shield, Sliders, Terminal, UserIcon, Users, X } from "./icons";
 import { DataPage, PreferencesPage, ProfilePage, SecurityPage } from "./settings/AccountPages";
 import { AboutPage, UsersPage } from "./settings/AdminPages";
+import { ClaudePage } from "./settings/ClaudePage";
 import { PageHeader } from "./settings/common";
 import { ShortcutList } from "./Shortcuts";
 import { useUpdateCheck } from "../lib/updates";
@@ -30,6 +31,7 @@ export function SettingsDialog({ page: initialPage, onClose }: { page: SettingsP
         { id: "preferences", label: "preferences", icon: <Sliders />, page: () => <PreferencesPage /> },
         { id: "security", label: "security", icon: <Shield />, page: () => <SecurityPage /> },
         { id: "data", label: "data", icon: <Database />, page: () => <DataPage /> },
+        { id: "claude", label: "claude", icon: <Terminal />, page: () => <ClaudePage /> },
       ],
     },
     {
