@@ -16,6 +16,7 @@ import { SettingsDialog } from "./components/SettingsDialog";
 import { SearchDialog } from "./components/SearchDialog";
 import { SharedPage } from "./components/SharedPage";
 import { PublicRecipePage } from "./components/PublicRecipePage";
+import { usePrefsSync } from "./lib/prefs";
 
 export default function App() {
   return (
@@ -67,6 +68,8 @@ const isUrl = (s: string) => /^https?:\/\/\S+\.\S+$/i.test(s.trim());
 
 function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => void; router: ReturnType<typeof useRouter>; onSignedOut: () => void }) {
   const { settings, update } = useSettings();
+  // Shared with the other bayfield.dev apps (prefs.bayfield.dev).
+  usePrefsSync({ theme: settings.theme, language: settings.language }, update);
   const mobile = useMediaQuery(MOBILE_QUERY);
   const [drawer, setDrawer] = useState(false);
   const [mobilePanel, setMobilePanel] = useState(false);

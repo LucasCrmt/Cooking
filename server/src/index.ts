@@ -43,7 +43,8 @@ app.use(
       styleSrc: ["'self'", "'unsafe-inline'"],
       // Recipe photos are copied to the server on import, so they come from here too.
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
+      // prefs.bayfield.dev: the preferences shared with the other apps.
+      connectSrc: ["'self'", "https://prefs.bayfield.dev"],
       frameAncestors: ["'none'"],
       formAction: ["'self'"],
       baseUri: ["'self'"],
