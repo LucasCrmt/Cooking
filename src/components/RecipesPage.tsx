@@ -1,4 +1,4 @@
-// The cookbook: every recipe of a list (all, favourites, not cooked yet), filtered by the query
+// The cookbook: every recipe of a list (all, favourites, to do, not cooked yet), filtered by the query
 // string (search, category, tag, time) and shown as photo cards or a compact list.
 
 import { useMemo, type MouseEvent } from "react";
@@ -13,7 +13,7 @@ import { BookOpen, Clock, Download, Heart, LayoutGrid, ListIcon, Plus, Search, X
 import { RecipeImage, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
 
-const TITLES: Record<ListName, StringKey> = { recipes: "allRecipes", favorites: "favorites", untried: "untried" };
+const TITLES: Record<ListName, StringKey> = { recipes: "allRecipes", favorites: "favorites", todo: "todoList", untried: "untried" };
 
 export function RecipesPage({ list }: { list: ListName }) {
   const { t, settings, update } = useSettings();

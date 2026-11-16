@@ -10,7 +10,7 @@ import { useSettings } from "../lib/settings";
 import { ConfirmDialog, Dialog, useToast } from "./common";
 import { ShareDialog } from "./ShareDialog";
 import { Dropdown as Floating } from "./pickers";
-import { CircleCheck, Clock, ExternalLink, Flame, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Trash, Users } from "./icons";
+import { CircleCheck, Clock, ExternalLink, Flame, ListTodo, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Square, SquareCheck, Trash, Users } from "./icons";
 import { FavoriteButton } from "./RecipesPage";
 import { EquipmentList, RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
@@ -85,7 +85,9 @@ export function RecipePage({ id }: { id: string }) {
 
   const toggleCooked = () => r && void act("/cooked", "PUT", { on: !r.lastCookedAt }, r.lastCookedAt ? undefined : t("cookedSaved"));
 
-  // E edits, F (un)favourites, C marks it cooked (or not).
+  const toggleTodo = () => r && void act("/todo", "PUT", { on: !r.todo }, r.todo ? undefined : t("addedToTodo"));
+
+  // E edits, F (un)favourites, C marks it cooked (or not), T puts it in "À faire" (or not).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || !r) return;
@@ -95,6 +97,7 @@ export function RecipePage({ id }: { id: string }) {
       if (k === "e" && r.canEdit) edit();
       else if (k === "f") void act("/favorite", "PUT", { on: !r.favorite });
       else if (k === "c") toggleCooked();
+      else if (k === "t") toggleTodo();
       else return;
       e.preventDefault();
     };
@@ -211,6 +214,16 @@ export function RecipePage({ id }: { id: string }) {
                   {r.ratingCount > 1 && r.rating && <span className="muted small">{t("averageOf", { avg: f.decimal(r.rating), n: r.ratingCount })}</span>}
                   <div className="toolbar-spacer" />
                   <button
+                    role="checkbox"
+                    aria-checked={r.todo}
+                    className={`text-button todo-toggle${r.todo ? " on" : ""}`}
+                    title={`${r.todo ? t("removeFromTodo") : t("addToTodo")} (T)`}
+                    onClick={toggleTodo}
+                  >
+                    {r.todo ? <SquareCheck size={15} /> : <Square size={15} />}
+                    {t("todoList")}
+                  </button>
+                  <button
                     className={`text-button cooked-toggle${r.lastCookedAt ? " on" : ""}`}
                     aria-pressed={!!r.lastCookedAt}
                     title={`${r.lastCookedAt ? t("uncookIt") : t("iCookedIt")} (C)`}
@@ -220,6 +233,12 @@ export function RecipePage({ id }: { id: string }) {
                     {r.lastCookedAt ? t("cookedByMe") : t("iCookedIt")}
                   </button>
                 </div>
+                {r.wantedBy.length > 0 && (
+                  <p className="wanted-by small">
+                    <ListTodo size={14} />
+                    <span>{t("wantedBy", { names: listNames(r.wantedBy, t("and")), n: r.wantedBy.length })}</span>
+                  </p>
+                )}
                 {r.equipment.length > 0 && <EquipmentList keys={r.equipment} onPick={(key) => navigate({ name: "recipes" }, { equipment: key })} />}
                 {r.tags.length > 0 && (
                   <div className="tag-list">
@@ -322,6 +341,9 @@ export function RecipePage({ id }: { id: string }) {
     </>
   );
 }
+
+/** "Marie", "Marie et Lucas", "Marie, Lucas et Paul". */
+const listNames = (names: string[], and: string) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} ${and} ${names[names.length - 1]}`);
 
 export const toggle = (s: Set<number>, i: number) => {
   const next = new Set(s);

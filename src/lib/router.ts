@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-export type ListName = "recipes" | "favorites" | "untried";
+export type ListName = "recipes" | "favorites" | "todo" | "untried";
 
 export type Route = { name: ListName } | { name: "recipe"; id: string } | { name: "shared" };
 
@@ -12,6 +12,7 @@ export function parseRoute(path: string): Route {
   if (parts[0] === "r" && parts[1] && /^\d+$/.test(parts[1])) return { name: "recipe", id: parts[1] };
   if (parts[0] === "favorites") return { name: "favorites" };
   if (parts[0] === "untried") return { name: "untried" };
+  if (parts[0] === "todo") return { name: "todo" };
   if (parts[0] === "shared") return { name: "shared" };
   return { name: "recipes" };
 }
@@ -24,6 +25,8 @@ export function routePath(r: Route): string {
       return "/favorites";
     case "untried":
       return "/untried";
+    case "todo":
+      return "/todo";
     case "shared":
       return "/shared";
     default:

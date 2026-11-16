@@ -4,7 +4,7 @@ import { blankRecipe, counts } from "../lib/recipes";
 import type { ListName } from "../lib/router";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
-import { BookOpen, ChefHat, Heart, PanelLeft, Plus, Search, Share, Utensils } from "./icons";
+import { BookOpen, ChefHat, Heart, ListTodo, PanelLeft, Plus, Search, Share, Utensils } from "./icons";
 
 
 const MIN_W = 200;
@@ -23,6 +23,7 @@ export function Sidebar() {
   const nav: [ListName, StringKey, ReactNode, number][] = [
     ["recipes", "allRecipes", <BookOpen />, all.length],
     ["favorites", "favorites", <Heart />, all.filter((r) => r.favorite).length],
+    ["todo", "todoList", <ListTodo />, all.filter((r) => r.todo).length],
     ["untried", "untried", <ChefHat />, all.filter((r) => !r.lastCookedAt).length],
   ];
   const filterActive = !!(query.category || query.tag);

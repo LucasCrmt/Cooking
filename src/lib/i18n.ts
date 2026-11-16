@@ -303,6 +303,13 @@ const en = {
   noImageInClipboard: "There's no image in the clipboard",
   clipboardDenied: "The browser didn't allow reading the clipboard: paste with Ctrl+V instead",
   pasteWithKeys: "Paste the image with Ctrl+V (or ⌘V)",
+  // To do
+  todoList: "To do",
+  addToTodo: "Add to my “To do” list",
+  removeFromTodo: "Remove from my “To do” list",
+  addedToTodo: "Added to “To do”",
+  wantedBy: "{names} {n|wants|want} to make it",
+  and: "and",
 };
 
 export type StringKey = keyof typeof en;
@@ -603,6 +610,13 @@ const fr: Record<StringKey, string> = {
   noImageInClipboard: "Il n'y a pas d'image dans le presse-papiers",
   clipboardDenied: "Le navigateur n'a pas permis de lire le presse-papiers : collez avec Ctrl+V",
   pasteWithKeys: "Collez l'image avec Ctrl+V (ou ⌘V)",
+  // To do
+  todoList: "À faire",
+  addToTodo: "Ajouter à ma liste « À faire »",
+  removeFromTodo: "Retirer de ma liste « À faire »",
+  addedToTodo: "Ajoutée à « À faire »",
+  wantedBy: "{names} {n|veut|veulent} la faire",
+  and: "et",
 };
 
 export type Lang = "en" | "fr";

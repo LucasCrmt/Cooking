@@ -161,9 +161,10 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
 
     case "get_recipe": {
       const r = await recipeById(a.id);
-      const [extra] = await sql<{ rating: number | null; cookedCount: number; addedBy: string | null }[]>`
+      const [extra] = await sql<{ rating: number | null; cookedCount: number; wantedBy: string[]; addedBy: string | null }[]>`
         SELECT (SELECT round(avg(stars)::numeric, 1)::float FROM ratings WHERE recipe_id = ${r.id}) AS rating,
                (SELECT count(*)::int FROM cooked WHERE recipe_id = ${r.id}) AS cooked_count,
+               (SELECT coalesce(array_agg(coalesce(nullif(u.name, ''), u.id)), '{}') FROM todo t JOIN users u ON u.id = t.user_id WHERE t.recipe_id = ${r.id}) AS wanted_by,
                (SELECT coalesce(nullif(name, ''), id) FROM users WHERE id = ${r.userId}) AS added_by`;
       return {
         id: r.id,
@@ -187,6 +188,7 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
         hasPhoto: r.hasImage,
         rating: extra.rating,
         cookedByPeople: extra.cookedCount,
+        wantToMakeIt: extra.wantedBy,
         addedBy: extra.addedBy,
         canEdit: canEdit(user, r),
         createdAt: r.createdAt,

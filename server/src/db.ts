@@ -153,6 +153,15 @@ const MIGRATIONS: string[] = [
       AND (newer.cooked_at, newer.ctid) > (c.cooked_at, c.ctid);
   ALTER TABLE cooked ADD PRIMARY KEY (user_id, recipe_id);
   `,
+  /* 7: "À faire": the recipes each person wants to make (the recipe lists who) */ `
+  CREATE TABLE todo (
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recipe_id bigint NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, recipe_id)
+  );
+  CREATE INDEX todo_recipe ON todo(recipe_id);
+  `,
 ];
 
 export async function migrate() {

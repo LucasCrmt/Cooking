@@ -1056,3 +1056,27 @@ button.equipment-chip:hover {
 .cooked-toggle.on:hover {
   background: color-mix(in srgb, var(--success) 18%, transparent);
 }
+
+/* "À faire": a checkbox you click, and who wants to make the recipe. */
+.todo-toggle.on {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.todo-toggle.on:hover {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+.wanted-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.wanted-by svg {
+  flex: none;
+  color: var(--primary);
+}

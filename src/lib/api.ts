@@ -110,6 +110,10 @@ export interface RecipeSummary {
   imageVersion: number;
   ingredientCount: number;
   favorite: boolean;
+  /** In your "À faire". */
+  todo: boolean;
+  /** How many people have it in their "À faire". */
+  wantedCount: number;
   myRating: number | null;
   rating: number | null;
   lastCookedAt: string | null;
@@ -124,6 +128,10 @@ export interface Recipe extends RecipeFields {
   hasImage: boolean;
   imageVersion: number;
   favorite: boolean;
+  /** In your "À faire". */
+  todo: boolean;
+  /** Who has it in their "À faire", first one first. */
+  wantedBy: string[];
   myRating: number | null;
   rating: number | null;
   ratingCount: number;

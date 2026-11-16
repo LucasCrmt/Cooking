@@ -96,6 +96,7 @@ export function filterRecipes(all: RecipeSummary[], list: ListName, q: Record<st
     (r) =>
       (list !== "favorites" || r.favorite) &&
       (list !== "untried" || !r.lastCookedAt) &&
+      (list !== "todo" || r.todo) &&
       (!q.category || r.category === q.category) &&
       (!q.tag || r.tags.includes(q.tag)) &&
       (!q.cuisine || r.cuisine === q.cuisine) &&

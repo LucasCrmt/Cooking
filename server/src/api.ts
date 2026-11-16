@@ -153,6 +153,8 @@ api.get("/recipes", async (c) => {
            r.cook_minutes, r.total_minutes, r.sources, r.has_image, r.image_version, r.created_at, r.updated_at,
            cardinality(r.ingredients)::int AS ingredient_count,
            (f.user_id IS NOT NULL) AS favorite,
+           EXISTS (SELECT 1 FROM todo WHERE recipe_id = r.id AND user_id = ${user.id}) AS todo,
+           (SELECT count(*)::int FROM todo WHERE recipe_id = r.id) AS wanted_count,
            my.stars AS my_rating,
            (SELECT round(avg(stars)::numeric, 1)::float FROM ratings WHERE recipe_id = r.id) AS rating,
            (SELECT max(cooked_at) FROM cooked WHERE recipe_id = r.id AND user_id = ${user.id}) AS last_cooked_at,
@@ -186,6 +188,9 @@ api.get("/recipes/:id", async (c) => {
   const [extra] = await sql<Record<string, unknown>[]>`
     SELECT
       EXISTS (SELECT 1 FROM favorites WHERE recipe_id = ${r.id} AND user_id = ${user.id}) AS favorite,
+      EXISTS (SELECT 1 FROM todo WHERE recipe_id = ${r.id} AND user_id = ${user.id}) AS todo,
+      (SELECT coalesce(array_agg(coalesce(nullif(u.name, ''), u.id) ORDER BY t.created_at), '{}')
+         FROM todo t JOIN users u ON u.id = t.user_id WHERE t.recipe_id = ${r.id}) AS wanted_by,
       (SELECT stars FROM ratings WHERE recipe_id = ${r.id} AND user_id = ${user.id}) AS my_rating,
       (SELECT round(avg(stars)::numeric, 1)::float FROM ratings WHERE recipe_id = ${r.id}) AS rating,
       (SELECT count(*)::int FROM ratings WHERE recipe_id = ${r.id}) AS rating_count,
@@ -262,7 +267,18 @@ api.put("/recipes/:id/cooked", async (c) => {
   const r = await recipeOr404(c);
   if ((await body(c)).on === true) {
     await sql`INSERT INTO cooked (user_id, recipe_id) VALUES (${user.id}, ${r.id}) ON CONFLICT (user_id, recipe_id) DO UPDATE SET cooked_at = now()`;
+    // Done: it leaves your "À faire".
+    await sql`DELETE FROM todo WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
   } else await sql`DELETE FROM cooked WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
+  return c.json({ ok: true });
+});
+
+/** "À faire", on or off: the recipes you want to make. */
+api.put("/recipes/:id/todo", async (c) => {
+  const user = c.get("user");
+  const r = await recipeOr404(c);
+  if ((await body(c)).on === true) await sql`INSERT INTO todo (user_id, recipe_id) VALUES (${user.id}, ${r.id}) ON CONFLICT DO NOTHING`;
+  else await sql`DELETE FROM todo WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
   return c.json({ ok: true });
 });
 
