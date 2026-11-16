@@ -16,7 +16,7 @@ async function byToken(c: Context) {
   if (!TOKEN.test(token)) throw new HttpError(404, "This link doesn't work anymore");
   const [r] = await sql<Record<string, unknown>[]>`
     SELECT id, title, description, category, cuisine, tags, servings, servings_label, prep_minutes, cook_minutes,
-           total_minutes, ingredients, steps, notes, sources, author, has_image, image_version, updated_at
+           total_minutes, ingredients, steps, notes, equipment, sources, author, has_image, image_version, updated_at
     FROM recipes WHERE share_token = ${token}`;
   if (!r) throw new HttpError(404, "This link doesn't work anymore");
   return r;

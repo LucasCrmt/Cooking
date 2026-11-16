@@ -574,14 +574,25 @@
 }
 .photo-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+.photo-field {
+  border-radius: 10px;
+  outline: 2px dashed transparent;
+  outline-offset: 4px;
+  transition: outline-color 0.1s;
+}
+.photo-field.dragging {
+  outline-color: var(--primary);
 }
 
 /* --- Import dialog --- */
 
 .import-preview {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -595,6 +606,10 @@
   gap: 10px;
   align-items: flex-start;
   color: var(--text-muted);
+}
+.import-preview-head > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .import-preview-head b {
   color: var(--text);
@@ -951,4 +966,72 @@ code.share-link {
 }
 .public-page .empty-state {
   min-height: 60vh;
+}
+
+/* --- Equipment --- */
+
+.equipment-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+.equipment-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+button.equipment-chip {
+  cursor: pointer;
+}
+button.equipment-chip:hover {
+  background: var(--hover);
+}
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.equipment-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.equipment-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text);
+  user-select: none;
+}
+.equipment-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.equipment-option.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.equipment-option:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.filter-option.active.without .filter-name {
+  color: var(--accent);
+}
+.filter-option.active.without .filter-check {
+  color: var(--accent);
 }

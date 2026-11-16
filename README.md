@@ -39,6 +39,8 @@ are personal.
 - **Share**: send a recipe to someone in the household with a note (it lands in their "Shared with me", with a count of new ones), or turn on a public link (`/s/<token>`) that shows it read-only to anyone, without an account, until you turn it off.
 - **Several sources per recipe**: the blog, the video it comes from, "Grandma's notebook", each with its icon; filter the cookbook by source.
 - **Cook from it**: servings stepper that rescales quantities (`200 g` → `250 g`, `½` → `¾`), tick off ingredients and steps, the screen stays on.
+- **Equipment**: tick what a recipe needs (oven, blender, stand mixer, airfryer, Thermomix…; imports guess it from the steps), then filter "with" or "without" it ("sans four").
+- **Photos**: choose a file, paste one (button or `Ctrl+V` in the editor) or drop it on the photo.
 - **Find it again**: categories, tags, cuisines, "ready in under 30 min", favourites, "not cooked yet", and a `Ctrl+K` search that also looks inside ingredients ("poireaux").
 - **Same shell as the siblings** ([calendar](https://github.com/PaulBayfield/calendar.bayfield.dev), [music](https://github.com/PaulBayfield/music.bayfield.dev), [DevTime](https://github.com/PaulBayfield/dev.bayfield.dev)): same header, sidebar, side panel, settings, five themes, English/French and update check.
 
@@ -48,14 +50,19 @@ are personal.
 data for search engines (JSON-LD, sometimes microdata). The server fetches the page and reads
 that: title, photo, servings, times, ingredients, steps (with sections), category, cuisine,
 keywords, author. No per-site scraper to maintain. Tested on Marmiton, 750g and BBC Good Food.
-Pages without it fall back to their Open Graph title, description and photo.
+When that data lacks the ingredients or the steps (or the page has none), the page's own text is
+read like a caption, between its "Ingrédients"/"Préparation" headings and its comments. Sites that
+turn the server away (bot protection) get a clear message instead: the **bookmarklet** then reads the
+recipe data on the page in your own browser and hands it over.
 
 **Videos and text.** Video recipes live in the caption. YouTube publishes the full description with the page,
 so a link is enough. Instagram (and often TikTok/Facebook) only show captions to signed-in visitors: the
 import then asks for the text, which you paste, or which the **bookmarklet** reads from the video page in
 your own browser and passes along in the URL fragment (never sent to a server). A caption parser
 (`server/src/caption.ts`) finds the ingredient and step sections ("Ingrédients", bullets, `1.`/`1️⃣`/`Étape 1`,
-"Pour la pâte :" sub-headings), servings and times, turns hashtags into tags and drops the "follow me / link in bio" outro.
+"Pour la pâte :" sub-headings), servings and times, turns hashtags into tags and drops the "follow me / link in bio" outro,
+chapters, separators, shop and book links, and credits. A description that only links to the recipe ("Recette complète :
+https://…") is followed: the linked page is read, with the video kept as a second source.
 The server never impersonates a crawler to get around a site's sign-in wall.
 
 **The template.** Text written in the recipe template (Markdown with a front matter: `title`, `category`, `cuisine`,

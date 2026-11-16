@@ -131,6 +131,7 @@ const en = {
   copyAiPrompt: "Copy the prompt for an AI",
   aiPromptCopied: "Prompt copied: give it to ChatGPT or Claude with a recipe, then paste the answer here",
   templateHint: "Written in the template, every field is filled: category, cuisine, tags, times, sections…",
+  blockedHint: "{site} doesn’t let the server read its pages. Open the recipe in your browser and click the bookmarklet (Settings → Data), or copy the recipe’s text and paste it here.",
   needsTextHint: "This site doesn’t show the caption to the server. Open the video, copy its description and paste it here (on a computer, the bookmarklet in Settings → Data does it in one click).",
   read: "Read",
   untitled: "Untitled",
@@ -286,6 +287,20 @@ const en = {
   linkGone: "This recipe isn't shared anymore, or the link is wrong.",
   openCooking: "Open Cooking",
   sharedFromCooking: "Shared from Cooking",
+  // Equipment, pasted photos
+  equipment: "Equipment",
+  detectEquipment: "Detect from the steps",
+  detectEquipmentHint: "Ticks what the ingredients and steps mention (oven, blender…)",
+  equipmentDetected: "{n} added from the steps",
+  equipmentNothingNew: "Nothing new found in the steps",
+  equipmentFilterHint: "Click once: needs it. Twice: without it. Three times: either.",
+  withoutName: "Without {name}",
+  recipesNeeding: "Recipes that need: {name}",
+  pastePhoto: "Paste",
+  photoPasted: "Photo pasted",
+  noImageInClipboard: "There's no image in the clipboard",
+  clipboardDenied: "The browser didn't allow reading the clipboard: paste with Ctrl+V instead",
+  pasteWithKeys: "Paste the image with Ctrl+V (or ⌘V)",
 };
 
 export type StringKey = keyof typeof en;
@@ -416,6 +431,7 @@ const fr: Record<StringKey, string> = {
   copyAiPrompt: "Copier le prompt pour une IA",
   aiPromptCopied: "Prompt copié : donnez-le à ChatGPT ou Claude avec une recette, puis collez sa réponse ici",
   templateHint: "Avec le modèle, tous les champs sont remplis : catégorie, cuisine, tags, temps, sections…",
+  blockedHint: "{site} ne laisse pas le serveur lire ses pages. Ouvrez la recette dans votre navigateur et cliquez sur le bookmarklet (Paramètres → Données), ou copiez le texte de la recette et collez-le ici.",
   needsTextHint: "Ce site ne montre pas la légende au serveur. Ouvrez la vidéo, copiez sa description et collez-la ici (sur ordinateur, le bookmarklet de Paramètres → Données le fait en un clic).",
   read: "Lire",
   untitled: "Sans titre",
@@ -569,6 +585,20 @@ const fr: Record<StringKey, string> = {
   linkGone: "Cette recette n'est plus partagée, ou le lien est incorrect.",
   openCooking: "Ouvrir Cooking",
   sharedFromCooking: "Partagée depuis Cooking",
+  // Equipment, pasted photos
+  equipment: "Matériel",
+  detectEquipment: "Détecter depuis les étapes",
+  detectEquipmentHint: "Coche ce que les ingrédients et les étapes mentionnent (four, mixeur…)",
+  equipmentDetected: "{n} ajouté(s) d'après les étapes",
+  equipmentNothingNew: "Rien de nouveau trouvé dans les étapes",
+  equipmentFilterHint: "Un clic : avec. Deux clics : sans. Trois clics : peu importe.",
+  withoutName: "Sans {name}",
+  recipesNeeding: "Recettes qui demandent : {name}",
+  pastePhoto: "Coller",
+  photoPasted: "Photo collée",
+  noImageInClipboard: "Il n'y a pas d'image dans le presse-papiers",
+  clipboardDenied: "Le navigateur n'a pas permis de lire le presse-papiers : collez avec Ctrl+V",
+  pasteWithKeys: "Collez l'image avec Ctrl+V (ou ⌘V)",
 };
 
 export type Lang = "en" | "fr";

@@ -73,10 +73,12 @@ function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => 
   const [searchOpen, setSearchOpen] = useState(false);
   // The bookmarklet (Settings → Data) opens the app with ?import=<the page you were on>, and the
   // caption it read there in the fragment (#text=…), which never reaches the server logs.
-  const [importing, setImporting] = useState<{ url: string; text?: string } | null>(() => {
+  const [importing, setImporting] = useState<{ url: string; text?: string; ld?: string } | null>(() => {
     const url = new URLSearchParams(location.search).get("import");
-    const text = new URLSearchParams(location.hash.slice(1)).get("text") ?? undefined;
-    return url || text ? { url: url ?? "", text } : null;
+    const hash = new URLSearchParams(location.hash.slice(1));
+    const text = hash.get("text") ?? undefined;
+    const ld = hash.get("ld") ?? undefined;
+    return url || text ? { url: url ?? "", text, ld } : null;
   });
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [settingsPage, setSettingsPage] = useState<SettingsPage | null>(() => {
@@ -230,7 +232,7 @@ function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => 
         )}
       </div>
       {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} />}
-      {importing && <ImportDialog initialUrl={importing.url} initialText={importing.text} onClose={() => setImporting(null)} />}
+      {importing && <ImportDialog initialUrl={importing.url} initialText={importing.text} initialLd={importing.ld} onClose={() => setImporting(null)} />}
       {settingsPage && <SettingsDialog page={settingsPage} onClose={() => setSettingsPage(null)} />}
     </AppContext.Provider>
   );

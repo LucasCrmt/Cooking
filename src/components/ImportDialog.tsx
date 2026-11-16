@@ -13,7 +13,15 @@ import { SourceIcon } from "./recipe-bits";
 
 type Mode = "link" | "text";
 
-export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl: string; initialText?: string; onClose: () => void }) {
+const hostOf = (address: string) => {
+  try {
+    return new URL(/^https?:\/\//i.test(address.trim()) ? address.trim() : `https://${address.trim()}`).hostname.replace(/^www\./, "");
+  } catch {
+    return address;
+  }
+};
+
+export function ImportDialog({ initialUrl, initialText, initialLd, onClose }: { initialUrl: string; initialText?: string; initialLd?: string; onClose: () => void }) {
   const { t, f, lang } = useSettings();
   const { navigate, openEditor, reloadRecipes } = useApp();
   const toast = useToast();
@@ -27,17 +35,19 @@ export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl:
   const [needsText, setNeedsText] = useState<string | null>(null);
   const started = useRef(false);
 
-  const read = async (m: Mode = mode, address = url, body = text) => {
+  const read = async (m: Mode = mode, address = url, body = text, ld?: string) => {
     if (m === "link" ? !address.trim() : !body.trim()) return;
     setBusy("read");
     setError(null);
     setResult(null);
     try {
-      setResult(await api<ImportResult>("/app/import", { body: m === "link" ? { url: address.trim() } : { url: address.trim() || undefined, text: body } }));
+      const payload = ld ? { url: address.trim(), ld } : m === "link" ? { url: address.trim() } : { url: address.trim() || undefined, text: body };
+      setResult(await api<ImportResult>("/app/import", { body: payload }));
     } catch (e) {
-      if (e instanceof ApiError && e.code === "needs_text") {
+      // The site keeps the recipe from the server: ask for the text (or the bookmarklet) instead.
+      if (e instanceof ApiError && (e.code === "needs_text" || e.code === "blocked")) {
         setMode("text");
-        setNeedsText(e.message);
+        setNeedsText(e.code === "blocked" ? t("blockedHint", { site: hostOf(address) }) : t("needsTextHint"));
       } else setError((e as Error).message);
     } finally {
       setBusy(null);
@@ -48,7 +58,8 @@ export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl:
   useEffect(() => {
     if ((initialUrl || initialText) && !started.current) {
       started.current = true;
-      void read(initialText ? "text" : "link", initialUrl, initialText ?? "");
+      // The bookmarklet's recipe data wins: it's the page as you see it.
+      void read(initialText && !initialLd ? "text" : "link", initialUrl, initialText ?? "", initialLd);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -133,7 +144,7 @@ export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl:
             {needsText ? (
               <p className="notice small">
                 <Info size={14} />
-                <span>{t("needsTextHint")}</span>
+                <span>{needsText}</span>
               </p>
             ) : (
               <p className="dialog-text">{t("importTextHint")}</p>
@@ -194,7 +205,7 @@ export function ImportDialog({ initialUrl, initialText, onClose }: { initialUrl:
               <div>
                 <b>{d.title || t("untitled")}</b>
                 <div className="muted small">
-                  {[d.sources[0]?.name, d.author].filter(Boolean).join(" · ")}
+                  {[d.sources[0]?.name, d.author && !d.sources[0]?.name.includes(d.author) ? d.author : ""].filter(Boolean).join(" · ")}
                   {d.imageUrl ? ` · ${t("withPhoto")}` : ""}
                 </div>
               </div>

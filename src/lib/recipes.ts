@@ -71,6 +71,7 @@ export const blankRecipe = (): RecipeFields => ({
   notes: "",
   sources: [],
   author: "",
+  equipment: [],
 });
 
 export const totalOf = (r: Pick<RecipeSummary, "totalMinutes" | "prepMinutes" | "cookMinutes">) =>
@@ -88,6 +89,9 @@ const fold = (s: string) =>
 export function filterRecipes(all: RecipeSummary[], list: ListName, q: Record<string, string>): RecipeSummary[] {
   const text = fold(q.q ?? "");
   const maxTime = Number(q.time) || 0;
+  // "with": needs all of these; "without": needs none of these ("sans four").
+  const withEq = (q.equipment ?? "").split(",").filter(Boolean);
+  const withoutEq = (q.without ?? "").split(",").filter(Boolean);
   const out = all.filter(
     (r) =>
       (list !== "favorites" || r.favorite) &&
@@ -97,6 +101,8 @@ export function filterRecipes(all: RecipeSummary[], list: ListName, q: Record<st
       (!q.cuisine || r.cuisine === q.cuisine) &&
       (!q.source || r.sources.some((s) => sourceLabel(s) === q.source)) &&
       (!maxTime || ((totalOf(r) ?? Infinity) <= maxTime)) &&
+      withEq.every((e) => r.equipment.includes(e)) &&
+      !withoutEq.some((e) => r.equipment.includes(e)) &&
       (!text || fold(`${r.title} ${r.description} ${r.tags.join(" ")} ${r.category} ${r.cuisine}`).includes(text)),
   );
   const sort = (q.sort as SortKey) || "recent";

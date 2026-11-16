@@ -1,15 +1,16 @@
 // The side panel on the right (like Calendar's event panel). It shows one of three things:
 // the editor (adding or changing a recipe), the filters (on a list), or a recipe's details.
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type Recipe, type RecipeFields } from "../lib/api";
 import { useApp, type EditorState } from "../lib/app";
 import { useApi } from "../lib/hooks";
 import { CATEGORIES, CUISINES, counts, sourceLabel, type SortKey } from "../lib/recipes";
+import { EQUIPMENT, equipmentName, equipmentOrder } from "../lib/equipment";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
 import { useToast } from "./common";
-import { Check, ChevronDown, ImageIcon, Plus, Trash, Upload, X } from "./icons";
+import { Check, ChevronDown, Clipboard, ImageIcon, Plus, Trash, Upload, X } from "./icons";
 import { SourceIcon, SourceList } from "./recipe-bits";
 
 export function RecipePanel() {
@@ -48,14 +49,25 @@ const SORTS: [SortKey, StringKey][] = [
 const TIMES = ["15", "30", "45", "60", "120"];
 
 function FiltersPanel() {
-  const { t, f } = useSettings();
+  const { t, f, lang } = useSettings();
   const { recipes, query, setQuery } = useApp();
   const all = recipes ?? [];
+  const equipment = useMemo(() => counts(all, (r) => r.equipment).sort((a, b) => equipmentOrder(a[0]) - equipmentOrder(b[0])), [all]);
+  const withEq = (query.equipment ?? "").split(",").filter(Boolean);
+  const withoutEq = (query.without ?? "").split(",").filter(Boolean);
+  /** Off → with → without → off: "avec four", then "sans four". */
+  const cycleEquipment = (key: string) => {
+    const w = withEq.filter((k) => k !== key);
+    const wo = withoutEq.filter((k) => k !== key);
+    if (!withEq.includes(key) && !withoutEq.includes(key)) w.push(key);
+    else if (withEq.includes(key)) wo.push(key);
+    setQuery({ equipment: w.join(",") || undefined, without: wo.join(",") || undefined });
+  };
   const categories = useMemo(() => counts(all, (r) => [r.category]), [all]);
   const cuisines = useMemo(() => counts(all, (r) => [r.cuisine]), [all]);
   const tags = useMemo(() => counts(all, (r) => r.tags), [all]);
   const sources = useMemo(() => counts(all, (r) => [...new Set(r.sources.map(sourceLabel))]), [all]);
-  const active = ["category", "cuisine", "tag", "time", "source"].filter((k) => query[k]);
+  const active = ["category", "cuisine", "tag", "time", "source", "equipment", "without"].filter((k) => query[k]);
 
   const options = (key: string, values: [string, number][], label?: (v: string) => string) => (
     <div className="filter-options">
@@ -98,6 +110,26 @@ function FiltersPanel() {
           (m) => t("underMinutes", { n: f.minutes(Number(m)) }),
         )}
       </section>
+      {equipment.length > 0 && (
+        <section className="panel-section">
+          <span className="panel-subtitle">{t("equipment")}</span>
+          <div className="filter-options">
+            {equipment.map(([key, n]) => {
+              const state = withEq.includes(key) ? "with" : withoutEq.includes(key) ? "without" : null;
+              return (
+                <button key={key} className={`filter-option${state ? ` active ${state}` : ""}`} onClick={() => cycleEquipment(key)} title={t("equipmentFilterHint")}>
+                  <span className="filter-check">{state === "with" ? <Check size={12} /> : state === "without" ? <X size={12} /> : null}</span>
+                  <span className="filter-name">
+                    {state === "without" ? t("withoutName", { name: lang === "fr" ? equipmentName(key, lang).toLowerCase() : equipmentName(key, lang) }) : equipmentName(key, lang)}
+                  </span>
+                  <span className="filter-time">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="settings-hint">{t("equipmentFilterHint")}</span>
+        </section>
+      )}
       {categories.length > 0 && (
         <section className="panel-section">
           <span className="panel-subtitle">{t("categories")}</span>
@@ -129,7 +161,7 @@ function FiltersPanel() {
 // --- Details ---
 
 function DetailsPanel({ id }: { id: string }) {
-  const { t, f } = useSettings();
+  const { t, f, lang } = useSettings();
   const r = useApi<Recipe>(`/app/recipes/${id}`).data;
   const row = (label: StringKey, value: ReactNode) =>
     value ? (
@@ -150,6 +182,7 @@ function DetailsPanel({ id }: { id: string }) {
           {row("cook", r.cookMinutes ? f.minutes(r.cookMinutes) : null)}
           {row("total", r.totalMinutes ? f.minutes(r.totalMinutes) : null)}
           {row("servings", r.servings ? `${r.servings} ${r.servingsLabel}` : null)}
+          {row("equipment", r.equipment.length ? r.equipment.map((k) => equipmentName(k, lang)).join(", ") : null)}
           {r.sources.length > 0 && row("sources", <SourceList sources={r.sources} />)}
           {row("author", r.author)}
           {row("addedByLabel", r.addedBy)}
@@ -173,7 +206,7 @@ const toLines = (text: string) =>
 const toInt = (s: string) => (s.trim() === "" ? null : Math.max(0, Math.round(Number(s))) || null);
 
 /** Phone photos are huge: scale to 1600 px on the long side, as JPEG. */
-async function downscale(file: File): Promise<string> {
+async function downscale(file: Blob): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -258,11 +291,66 @@ function RecipeEditor({ state }: { state: EditorState }) {
   );
   // Sources: each a link and/or a name ("Le carnet de mamie"); the kind is worked out by the server.
   const [sources, setSources] = useState(init.sources.map((x) => ({ url: x.url ?? "", name: x.name, kind: x.kind })));
+  const [equipment, setEquipment] = useState<string[]>(init.equipment ?? []);
+  const toggleEquipment = (key: string) => setEquipment((list) => (list.includes(key) ? list.filter((k) => k !== key) : [...list, key]));
+  const detectEquipment = async () => {
+    try {
+      const res = await api<{ equipment: string[] }>("/app/equipment/detect", { body: { text: [form.ingredients, form.steps, form.notes].join("\n") } });
+      const added = res.equipment.filter((k) => !equipment.includes(k));
+      setEquipment([...equipment, ...added]);
+      toast(added.length ? t("equipmentDetected", { n: added.length }) : t("equipmentNothingNew"));
+    } catch (e) {
+      toast((e as Error).message, "error");
+    }
+  };
   const setSource = (i: number, patch: Partial<(typeof sources)[number]>) => setSources((list) => list.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+
+  /** An image from a file, the clipboard or a drop becomes the photo. */
+  const takePhoto = async (blob: Blob) => {
+    try {
+      setPhoto({ kind: "upload", src: await downscale(blob) });
+      return true;
+    } catch {
+      toast(t("photoUnreadable"), "error");
+      return false;
+    }
+  };
+
+  // Ctrl+V with an image anywhere in the editor (a screenshot, "Copy image" in a browser).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const image = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith("image/"));
+      if (!image) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      void takePhoto(image).then((ok) => ok && toast(t("photoPasted")));
+    };
+    window.addEventListener("paste", onPaste, true);
+    return () => window.removeEventListener("paste", onPaste, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** The "Paste" button: reads an image from the clipboard (the browser may ask first). */
+  const pastePhoto = async () => {
+    try {
+      if (!navigator.clipboard?.read) throw new Error("unsupported");
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((ty) => ty.startsWith("image/"));
+        if (type) {
+          await takePhoto(await item.getType(type));
+          return;
+        }
+      }
+      toast(t("noImageInClipboard"), "error");
+    } catch (e) {
+      toast((e as Error).message === "unsupported" ? t("pasteWithKeys") : t("clipboardDenied"), "error");
+    }
+  };
   // The usual choices, then whatever the cookbook already uses (imports bring their own words).
   const categories = useMemo(() => withPresets(CATEGORIES[lang], counts(recipes ?? [], (r) => [r.category])), [recipes, lang]);
   const cuisines = useMemo(() => withPresets(CUISINES[lang], counts(recipes ?? [], (r) => [r.cuisine])), [recipes, lang]);
@@ -291,6 +379,7 @@ function RecipeEditor({ state }: { state: EditorState }) {
       notes: form.notes,
       sources: sources.filter((x) => x.url.trim() || x.name.trim()).map((x) => ({ url: x.url.trim() || null, name: x.name.trim(), kind: x.kind })),
       author: init.author,
+      equipment,
     };
     const image =
       photo.kind === "remote"
@@ -349,7 +438,23 @@ function RecipeEditor({ state }: { state: EditorState }) {
 
         <div className="field">
           <span>{t("photo")}</span>
-          <div className="photo-field">
+          <div
+            className={`photo-field${dragging ? " dragging" : ""}`}
+            onDragOver={(e) => {
+              if ([...e.dataTransfer.items].some((i) => i.kind === "file" && i.type.startsWith("image/"))) {
+                e.preventDefault();
+                setDragging(true);
+              }
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              const image = [...e.dataTransfer.files].find((f) => f.type.startsWith("image/"));
+              setDragging(false);
+              if (!image) return;
+              e.preventDefault();
+              void takePhoto(image);
+            }}
+          >
             {photo.kind === "keep" || photo.kind === "upload" ? (
               <img src={photo.src!} alt="" />
             ) : photo.kind === "remote" ? (
@@ -368,6 +473,10 @@ function RecipeEditor({ state }: { state: EditorState }) {
                 <Upload size={14} />
                 {t("choosePhoto")}
               </button>
+              <button type="button" className="text-button" title={`${t("pastePhoto")} (Ctrl+V)`} onClick={() => void pastePhoto()}>
+                <Clipboard size={14} />
+                {t("pastePhoto")}
+              </button>
               {photo.kind !== "none" && (
                 <button type="button" className="icon-button small" aria-label={t("removePhoto")} title={t("removePhoto")} onClick={() => setPhoto({ kind: "none", src: null })}>
                   <Trash size={14} />
@@ -382,12 +491,7 @@ function RecipeEditor({ state }: { state: EditorState }) {
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
-                if (!f) return;
-                try {
-                  setPhoto({ kind: "upload", src: await downscale(f) });
-                } catch {
-                  toast(t("photoUnreadable"), "error");
-                }
+                if (f) await takePhoto(f);
               }}
             />
           </div>
@@ -414,6 +518,24 @@ function RecipeEditor({ state }: { state: EditorState }) {
 
         {field("ingredients", <textarea className="text-field mono" rows={8} value={form.ingredients} placeholder={t("ingredientsPlaceholder")} onChange={(e) => set({ ingredients: e.target.value })} />, t("ingredientsHint"))}
         {field("steps", <textarea className="text-field" rows={10} value={form.steps} placeholder={t("stepsPlaceholder")} onChange={(e) => set({ steps: e.target.value })} />, t("stepsHint"))}
+        <div className="field">
+          <span className="field-label-row">
+            {t("equipment")}
+            <button type="button" className="link-button small" onClick={() => void detectEquipment()} title={t("detectEquipmentHint")}>
+              {t("detectEquipment")}
+            </button>
+          </span>
+          <div className="equipment-picker">
+            {[...EQUIPMENT.map((e) => e.key), ...equipment.filter((k) => !EQUIPMENT.some((e) => e.key === k))].map((key) => (
+              <label key={key} className={`equipment-option${equipment.includes(key) ? " active" : ""}`}>
+                <input type="checkbox" checked={equipment.includes(key)} onChange={() => toggleEquipment(key)} />
+                {equipment.includes(key) && <Check size={12} />}
+                {equipmentName(key, lang)}
+              </label>
+            ))}
+          </div>
+        </div>
+
         {field("notes", <textarea className="text-field" rows={3} value={form.notes} maxLength={5000} onChange={(e) => set({ notes: e.target.value })} />)}
 
         <div className="field">

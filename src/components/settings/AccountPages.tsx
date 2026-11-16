@@ -237,8 +237,9 @@ function describeAgent(ua: string): string {
 
 /**
  * Runs on the page you're reading, in your own browser (signed in to Instagram if you are), and
- * opens Cooking with its address. It also sends text along: what you selected, or on Instagram,
- * TikTok and Facebook the caption it finds on the page (those sites don't show it to the server).
+ * opens Cooking with its address. It also sends along the page's recipe data (for sites that turn
+ * the server away), or text: what you selected, or on Instagram, TikTok and Facebook the caption it
+ * finds on the page (those sites don't show it to the server).
  * The text travels in the fragment (#text=…), which browsers never send to a server.
  */
 function bookmarkletCode(origin: string): string {
@@ -248,7 +249,9 @@ if(!t&&/instagram|tiktok|facebook/.test(h)){
 var pick=function(q){return [].slice.call(document.querySelectorAll(q)).map(function(e){return (e.innerText||"").trim()}).filter(function(x){return x.length>40&&x.length<8000}).sort(function(a,b){return b.length-a.length})[0]};
 t=pick("h1")||pick("[data-e2e=browse-video-desc],[data-e2e=video-desc]")||pick("span[dir=auto]")||((document.querySelector("meta[property='og:description']")||{}).content||"");
 }
-location.href=${JSON.stringify(`${origin}/?import=`)}+encodeURIComponent(location.href)+(t?"#text="+encodeURIComponent(t.slice(0,8000)):"");
+var ld=[].slice.call(document.querySelectorAll("script[type='application/ld+json']")).map(function(e){return e.textContent||""}).filter(function(x){return /Recipe/.test(x)})[0]||"";
+if(ld.length>60000)ld="";
+location.href=${JSON.stringify(`${origin}/?import=`)}+encodeURIComponent(location.href)+(ld&&!s?"#ld="+encodeURIComponent(ld):t?"#text="+encodeURIComponent(t.slice(0,8000)):"");
 })()`.replace(/\n/g, "");
 }
 

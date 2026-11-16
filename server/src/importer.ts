@@ -15,6 +15,7 @@ import { IMAGE_MAX_BYTES } from "./config.ts";
 import { HttpError, bad } from "./http.ts";
 import { cleanUrl, kindOf, parseCaption, sourceName, type Source } from "./caption.ts";
 import { looksLikeTemplate, parseTemplate, unescapeMarkdown } from "./template.ts";
+import { detectEquipment, equipmentInput, equipmentKey } from "./equipment.ts";
 
 export interface RecipeDraft {
   title: string;
@@ -32,6 +33,8 @@ export interface RecipeDraft {
   notes: string;
   sources: Source[];
   author: string;
+  /** Keys such as "oven" (see equipment.ts), guessed from the recipe's words when not given. */
+  equipment: string[];
   imageUrl: string | null;
 }
 
@@ -97,6 +100,14 @@ async function safeFetch(raw: string, maxBytes: number, accept: string): Promise
       url = await checkUrl(new URL(res.headers.get("location")!, url).toString());
       continue;
     }
+    if (res.status === 401 || res.status === 402 || res.status === 403 || res.status === 429 || res.status === 503) {
+      throw new HttpError(
+        422,
+        `${url.hostname} doesn't let the server read its pages. Open the recipe and use the bookmarklet (Settings → Data), or copy the recipe's text here.`,
+        "blocked",
+      );
+    }
+    if (res.status === 404 || res.status === 410) throw new HttpError(422, `That page doesn't exist on ${url.hostname} (anymore)`);
     if (!res.ok) throw new HttpError(502, `${url.hostname} answered ${res.status}`);
     const declared = Number(res.headers.get("content-length") ?? 0);
     if (declared > maxBytes) throw new HttpError(413, "That file is too large");
@@ -347,11 +358,132 @@ function jsonString(html: string, key: string): string | null {
   }
 }
 
+/**
+ * The readable text of a page, one block per line ("- " before list items), without menus,
+ * headers, footers, sidebars, forms or scripts: what the caption reader can work on.
+ */
+export function pageText(html: string): string {
+  let h = html.replace(/<!--[\s\S]*?-->/g, " ");
+  for (const tag of ["script", "style", "noscript", "svg", "iframe", "template", "nav", "header", "footer", "aside", "form", "button", "select"]) {
+    h = h.replace(new RegExp(`<${tag}\\b[\\s\\S]*?</${tag}>`, "gi"), " ");
+  }
+  const main = /<article\b[\s\S]*<\/article>/i.exec(h)?.[0] ?? /<main\b[\s\S]*<\/main>/i.exec(h)?.[0] ?? /<body\b[\s\S]*<\/body>/i.exec(h)?.[0] ?? h;
+  return decodeEntities(
+    main
+      .replace(/<li\b[^>]*>/gi, "\n- ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/?(?:p|div|h[1-6]|ul|ol|li|tr|td|th|section|article|table|dd|dt|blockquote|figure|figcaption)\b[^>]*>/gi, "\n")
+      .replace(/<[^>]+>/g, " "),
+  )
+    .replace(/[ \t  ]+/g, " ")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && l !== "-")
+    .join("\n")
+    .slice(0, 100_000);
+}
+
+const RECIPE_LINK = /(recette|recipe|quantit|ingr[ée]dient|written|printable|full|compl[eè]te|d[ée]taill|blog)/i;
+const NOT_RECIPE_LINK = /(boutique|\bshop|store|\blivre|\bbook|mat[ée]riel|equipment|gear|amazon|affili|code promo|merch|abonne|subscribe|patreon|tipeee|instagram|facebook|tiktok|twitter|pinterest|youtube\.com|youtu\.be)/i;
+
+/** "Recette complète : https://…", "Full recipe 👉 https://…" in a description: where the recipe is written. */
+function recipeLink(text: string): string | null {
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!RECIPE_LINK.test(line) || NOT_RECIPE_LINK.test(line)) continue;
+    // The address on the same line, or alone on the next one.
+    const here = /(https?:\/\/[^\s)>\]"]+)/.exec(line)?.[1];
+    const next = /^\s*(https?:\/\/[^\s)>\]"]+)\s*$/.exec(lines[i + 1] ?? "")?.[1];
+    const found = here ?? next;
+    if (found && !NOT_RECIPE_LINK.test(found)) return found;
+  }
+  return null;
+}
+
+/**
+ * A caption without the recipe that links to it ("Quantités de la recette : https://…"): the
+ * linked page is read instead, keeping the video as a second source and its picture if needed.
+ */
+async function withLinkedRecipe(
+  result: { draft: RecipeDraft; partial: boolean },
+  text: string,
+  depth: number,
+): Promise<{ draft: RecipeDraft; partial: boolean }> {
+  // A real recipe in the caption wins; a thin one (a line or two, no steps) gives way to the link.
+  if ((result.draft.ingredients.length >= 3 && result.draft.steps.length > 0) || depth > 0) return result;
+  const link = recipeLink(text);
+  if (!link) return result;
+  try {
+    const linked = await importRecipe(link, depth + 1);
+    if (linked.draft.ingredients.length <= result.draft.ingredients.length) return result;
+    const d = linked.draft;
+    const sources = [...d.sources, ...result.draft.sources.filter((s) => !d.sources.some((o) => o.url === s.url))].slice(0, 12);
+    return {
+      draft: {
+        ...d,
+        description: d.description || result.draft.description,
+        tags: [...new Set([...d.tags, ...result.draft.tags])].slice(0, 6),
+        author: d.author || result.draft.author,
+        imageUrl: d.imageUrl ?? result.draft.imageUrl,
+        sources,
+      },
+      partial: linked.partial,
+    };
+  } catch {
+    return result;
+  }
+}
+
+const normTitle = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/** Last touches on any draft: no section named after the recipe alone, no emoji-only title start, totals. */
+function tidy(d: RecipeDraft): RecipeDraft {
+  const dropTitleHeading = (lines: string[]) => {
+    const headings = lines.filter((l) => l.startsWith("# "));
+    return headings.length === 1 && lines[0]?.startsWith("# ") && normTitle(lines[0].slice(2)) === normTitle(d.title) ? lines.slice(1) : lines;
+  };
+  d.ingredients = dropTitleHeading(d.ingredients);
+  d.steps = dropTitleHeading(d.steps);
+  // A heading with nothing under it (the list ended, or the next heading follows) goes.
+  const dropEmptyHeadings = (lines: string[]) => lines.filter((l, i) => !l.startsWith("# ") || (lines[i + 1] !== undefined && !lines[i + 1].startsWith("# ")));
+  d.ingredients = dropEmptyHeadings(d.ingredients);
+  d.steps = dropEmptyHeadings(d.steps);
+  d.title = d.title.replace(/^[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}‍️\s]+/u, "").trim() || d.title;
+  if (!d.totalMinutes && (d.prepMinutes || d.cookMinutes)) d.totalMinutes = (d.prepMinutes ?? 0) + (d.cookMinutes ?? 0);
+  // What the recipe says it needs, added to what the source listed.
+  d.equipment = [...new Set([...d.equipment, ...detectEquipment([...d.steps, ...d.ingredients, d.notes].join("\n"))])];
+  return d;
+}
+
+/** Fills what structured data left out (ingredients, steps, servings, times) from the page's text. */
+function fillFromPage(d: RecipeDraft, html: string): RecipeDraft {
+  if (d.ingredients.length > 0 && d.steps.length > 0) return d;
+  const c = parseCaption(pageText(html), d.title, { page: true });
+  if (d.ingredients.length === 0) d.ingredients = c.ingredients;
+  if (d.steps.length === 0) d.steps = c.steps;
+  if (d.servings === null && c.servings !== null) {
+    d.servings = c.servings;
+    d.servingsLabel ||= c.servingsLabel;
+  }
+  d.prepMinutes ??= c.prepMinutes;
+  d.cookMinutes ??= c.cookMinutes;
+  d.totalMinutes ??= c.totalMinutes;
+  return d;
+}
+
 /** The recipe from a caption or description, with the video as its source. */
-function fromCaption(text: string, opts: { url: string | null; fallbackTitle?: string; author?: string; site?: string; imageUrl?: string | null }) {
+function fromCaption(text: string, opts: { url: string | null; fallbackTitle?: string; title?: string; author?: string; site?: string; imageUrl?: string | null }) {
   const c = parseCaption(text, opts.fallbackTitle);
   const draft: RecipeDraft = {
-    title: c.title,
+    // A video has its own title, better than the first line of its description.
+    title: opts.title || c.title,
     description: c.description,
     category: "",
     cuisine: "",
@@ -366,8 +498,10 @@ function fromCaption(text: string, opts: { url: string | null; fallbackTitle?: s
     notes: "",
     sources: opts.url ? [{ url: opts.url, name: sourceName(opts.url, opts.site, opts.author), kind: kindOf(opts.url) }] : [],
     author: opts.author ?? "",
+    equipment: [],
     imageUrl: opts.imageUrl ?? null,
   };
+  tidy(draft);
   return { draft, partial: c.ingredients.length === 0 || c.steps.length === 0 };
 }
 
@@ -378,8 +512,11 @@ function fromCaption(text: string, opts: { url: string | null; fallbackTitle?: s
 const needsText = (kind: string) =>
   new HttpError(422, `${kind} doesn't show the caption to the server. Copy the video's description and paste it here, or use the bookmarklet from the video's page.`, "needs_text");
 
-/** A draft recipe from the page at `raw`. Throws when the page holds no recipe at all. */
-export async function importRecipe(raw: string): Promise<{ draft: RecipeDraft; partial: boolean }> {
+/**
+ * A draft recipe from the page at `raw`. Throws when the page holds no recipe at all.
+ * `depth` > 0 when following a link found in a video's description (only one hop).
+ */
+export async function importRecipe(raw: string, depth = 0): Promise<{ draft: RecipeDraft; partial: boolean }> {
   const source = cleanUrl(raw);
   const kind = kindOf(source);
   let page: Awaited<ReturnType<typeof safeFetch>>;
@@ -391,23 +528,25 @@ export async function importRecipe(raw: string): Promise<{ draft: RecipeDraft; p
   }
   const html = decodePage(page.body, page.type);
   const url = page.url;
+  // Where the page really is, after redirects (a short link, an old address), without tracking.
+  const pageSource = cleanUrl(url.toString());
   const og = meta(html, "og:image");
   const ogImage = og ? absolute(og, url) : null;
 
   // YouTube puts the whole description in the page's player data.
   if (kind === "youtube") {
     const description = jsonString(html, "shortDescription") ?? meta(html, "og:description");
-    const title = jsonString(html, "title") ?? meta(html, "og:title");
+    const title = meta(html, "og:title") || jsonString(html, "title");
     const author = jsonString(html, "ownerChannelName") ?? jsonString(html, "author") ?? "";
-    if (!description) throw new HttpError(422, "No description found on that video");
-    return fromCaption(description, { url: source, fallbackTitle: title, author, imageUrl: ogImage });
+    if (!description) throw new HttpError(422, "No description found on that video (is it public?)");
+    return withLinkedRecipe(fromCaption(description, { url: source, title: title ?? "", author, imageUrl: ogImage }), description, depth);
   }
   // TikTok: the caption is the "desc" of the video in the page's state, when it's served.
   if (kind === "tiktok") {
     const description = jsonString(html, "desc") || meta(html, "og:description");
     if (!description) throw needsText("TikTok");
     const author = jsonString(html, "uniqueId");
-    return fromCaption(description, { url: source, author: author ? `@${author}` : "", imageUrl: ogImage });
+    return withLinkedRecipe(fromCaption(description, { url: source, author: author ? `@${author}` : "", imageUrl: ogImage }), description, depth);
   }
   // Instagram: the caption only comes with the page's description for some posts.
   if (kind === "instagram" || kind === "facebook") {
@@ -415,48 +554,18 @@ export async function importRecipe(raw: string): Promise<{ draft: RecipeDraft; p
     // "1,234 likes, 56 comments - user on March 3, 2025: "caption…"."
     const m = /^(?:[\s\S]*?)(?:-\s*([\w.]+)\s+on\s+[^:]+:\s*)?["“]([\s\S]+)["”]\.?\s*$/.exec(description);
     if (!m || m[2].length < 40) throw needsText(sourceName(source));
-    return fromCaption(m[2], { url: source, author: m[1] ? `@${m[1]}` : "", imageUrl: ogImage });
+    return withLinkedRecipe(fromCaption(m[2], { url: source, author: m[1] ? `@${m[1]}` : "", imageUrl: ogImage }), m[2], depth);
   }
 
+  let draft: RecipeDraft;
   const recipe = findRecipe(jsonLd(html));
   if (recipe) {
-    const y = servings(recipe.recipeYield ?? recipe.yield);
-    const category = clean(asArray(recipe.recipeCategory)[0], 60).split(",")[0].trim();
-    const cuisine = clean(asArray(recipe.recipeCuisine)[0], 60).split(",")[0].trim();
-    const publisher = recipe.publisher && typeof recipe.publisher === "object" ? clean((recipe.publisher as Record<string, unknown>).name, 100) : "";
-    const ingredients = asArray(recipe.recipeIngredient ?? recipe.ingredients)
-      .map((i) => clean(i, 300))
-      .filter(Boolean)
-      .slice(0, 200);
-    const draft: RecipeDraft = {
-      title: clean(recipe.name, 200) || meta(html, "og:title"),
-      description: clean(recipe.description, 2000),
-      category,
-      cuisine,
-      tags: keywords(recipe.keywords, [category.toLowerCase(), cuisine.toLowerCase()]),
-      servings: y.servings,
-      servingsLabel: y.label,
-      prepMinutes: minutes(recipe.prepTime),
-      cookMinutes: minutes(recipe.cookTime),
-      totalMinutes: minutes(recipe.totalTime),
-      ingredients,
-      steps: instructions(recipe.recipeInstructions),
-      notes: "",
-      sources: [{ url: source, name: publisher || siteName(url, html), kind }],
-      author: names(recipe.author),
-      imageUrl: imageUrl(recipe.image, url) ?? ogImage,
-    };
-    if (!draft.totalMinutes && (draft.prepMinutes || draft.cookMinutes)) draft.totalMinutes = (draft.prepMinutes ?? 0) + (draft.cookMinutes ?? 0);
-    return { draft, partial: ingredients.length === 0 || draft.steps.length === 0 };
-  }
-
-  // No JSON-LD: microdata, then whatever the page says about itself.
-  const ingredients = [...microdata(html, "recipeIngredient"), ...microdata(html, "ingredients")].slice(0, 200);
-  const steps = microdata(html, "recipeInstructions").slice(0, 100);
-  const title = microdata(html, "name")[0] || meta(html, "og:title") || clean(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1], 200);
-  if (!title) throw new HttpError(422, "No recipe found on that page");
-  return {
-    draft: {
+    draft = draftFromRecipe(recipe, { url, source: pageSource, site: siteName(url, html), fallbackTitle: meta(html, "og:title"), fallbackImage: ogImage });
+  } else {
+    // No JSON-LD: microdata, then whatever the page says about itself.
+    const title = microdata(html, "name")[0] || meta(html, "og:title") || clean(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1], 200);
+    if (!title) throw new HttpError(422, "No recipe found on that page");
+    draft = {
       title: title.slice(0, 200),
       description: meta(html, "og:description") || meta(html, "description"),
       category: "",
@@ -467,15 +576,71 @@ export async function importRecipe(raw: string): Promise<{ draft: RecipeDraft; p
       prepMinutes: null,
       cookMinutes: null,
       totalMinutes: null,
-      ingredients,
-      steps,
+      ingredients: [...microdata(html, "recipeIngredient"), ...microdata(html, "ingredients")].slice(0, 200),
+      steps: microdata(html, "recipeInstructions").slice(0, 100),
       notes: "",
-      sources: [{ url: source, name: siteName(url, html), kind }],
+      sources: [{ url: pageSource, name: siteName(url, html), kind }],
       author: "",
+      equipment: [],
       imageUrl: ogImage,
-    },
-    partial: true,
+    };
+  }
+  // Structured data without the ingredients or the steps (or none at all): read the page itself.
+  tidy(fillFromPage(draft, html));
+  return { draft, partial: draft.ingredients.length === 0 || draft.steps.length === 0 };
+}
+
+/** A draft from a schema.org Recipe object (from the page's JSON-LD, or sent by the bookmarklet). */
+function draftFromRecipe(
+  recipe: Record<string, unknown>,
+  at: { url: URL; source: string; site: string; fallbackTitle?: string; fallbackImage?: string | null },
+): RecipeDraft {
+  const y = servings(recipe.recipeYield ?? recipe.yield);
+  const category = clean(asArray(recipe.recipeCategory)[0], 60).split(",")[0].trim();
+  const cuisine = clean(asArray(recipe.recipeCuisine)[0], 60).split(",")[0].trim();
+  const publisher = recipe.publisher && typeof recipe.publisher === "object" ? clean((recipe.publisher as Record<string, unknown>).name, 100) : "";
+  return {
+    title: clean(recipe.name, 200) || at.fallbackTitle || "",
+    description: clean(recipe.description, 2000),
+    category,
+    cuisine,
+    tags: keywords(recipe.keywords, [category.toLowerCase(), cuisine.toLowerCase()]),
+    servings: y.servings,
+    servingsLabel: y.label,
+    prepMinutes: minutes(recipe.prepTime),
+    cookMinutes: minutes(recipe.cookTime),
+    totalMinutes: minutes(recipe.totalTime),
+    ingredients: asArray(recipe.recipeIngredient ?? recipe.ingredients)
+      .map((i) => clean(i, 300))
+      .filter(Boolean)
+      .slice(0, 200),
+    steps: instructions(recipe.recipeInstructions),
+    notes: "",
+    sources: [{ url: at.source, name: publisher || at.site, kind: kindOf(at.source) }],
+    author: names(recipe.author),
+    // schema.org "tool": HowToTool objects or names.
+    equipment: equipmentInput(asArray(recipe.tool).map((x) => (typeof x === "string" ? x : x && typeof x === "object" ? clean((x as Record<string, unknown>).name, 40) : ""))),
+    imageUrl: imageUrl(recipe.image, at.url) ?? at.fallbackImage ?? null,
   };
+}
+
+/**
+ * The recipe data the bookmarklet read on a page in your own browser (for sites that turn the
+ * server away): the page's JSON-LD blocks, as text. Nothing is fetched but the photo, on save.
+ */
+export function importJsonLd(ld: string, rawUrl: string): { draft: RecipeDraft; partial: boolean } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(ld);
+  } catch {
+    throw bad("The recipe data from that page couldn't be read");
+  }
+  const recipe = findRecipe(parsed);
+  if (!recipe) throw new HttpError(422, "No recipe found in that page's data");
+  const source = cleanUrl(rawUrl);
+  const url = new URL(source);
+  const draft = tidy(draftFromRecipe(recipe, { url, source, site: url.hostname.replace(/^www\./, "") }));
+  return { draft, partial: draft.ingredients.length === 0 || draft.steps.length === 0 };
 }
 
 /**
@@ -499,13 +664,16 @@ export async function importText(raw: string, rawUrl: string | null): Promise<{ 
       // The text is what matters; a missing photo is fine.
     }
   }
-  return fromCaption(text, { url, site, imageUrl });
+  return withLinkedRecipe(fromCaption(text, { url, site, imageUrl }), text, 0);
 }
 
 
 /** Text written in the recipe template (see template.ts): every field is where it says. */
 function fromTemplate(text: string, rawUrl: string | null): { draft: RecipeDraft; partial: boolean } {
   const t = parseTemplate(text);
+  const known = t.equipment.filter((e) => equipmentKey(e));
+  const other = t.equipment.filter((e) => !equipmentKey(e));
+  if (other.length) t.notes = [t.notes, ["Matériel", ...other.map((e) => `- ${e}`)].join("\n")].filter(Boolean).join("\n\n");
   const urls = [...(rawUrl ? [rawUrl] : []), ...t.sourceUrls].flatMap((u) => {
     try {
       return [cleanUrl(u)];
@@ -531,7 +699,9 @@ function fromTemplate(text: string, rawUrl: string | null): { draft: RecipeDraft
     notes: t.notes,
     sources: sources.slice(0, 12),
     author: t.author,
+    equipment: equipmentInput(known),
     imageUrl: t.imageUrl,
   };
+  tidy(draft);
   return { draft, partial: !draft.title || draft.ingredients.length === 0 || draft.steps.length === 0 };
 }

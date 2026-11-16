@@ -6,10 +6,11 @@ import { APP_VERSION, IMAGE_MAX_BYTES, IMPORT_ENABLED, UPDATE_CHECK, oidc } from
 import { requireAdmin, requireUser, signOutEverywhere, type AppEnv } from "./auth.ts";
 import { randomToken, sha256 } from "./crypto.ts";
 import { HttpError, bad, body, rateLimit, str } from "./http.ts";
-import { fetchImage, importRecipe, importText, sniffImage } from "./importer.ts";
+import { fetchImage, importJsonLd, importRecipe, importText, sniffImage } from "./importer.ts";
 import { cleanUrl, kindOf, sourceName, type Source } from "./caption.ts";
 import { RELEASES_URL, updateStatus } from "./updates.ts";
 import { USERNAME, getUser, meView, type User } from "./users.ts";
+import { detectEquipment, equipmentInput } from "./equipment.ts";
 
 export const api = new Hono<AppEnv>();
 api.use("*", requireUser);
@@ -34,6 +35,7 @@ export interface RecipeRow {
   notes: string;
   sources: Source[];
   author: string;
+  equipment: string[];
   hasImage: boolean;
   imageVersion: number;
   createdAt: Date;
@@ -85,6 +87,7 @@ export function recipeInput(b: Record<string, unknown>) {
     notes: str(b.notes, 5000),
     sources: sql.json((Array.isArray(b.sources) ? b.sources : []).slice(0, 12).map(sourceInput).filter((s): s is Source => !!s) as never),
     author: str(b.author, 100),
+    equipment: equipmentInput(b.equipment),
   };
 }
 
@@ -146,7 +149,7 @@ export async function saveImage(recipeId: string, image: { mime: string; data: B
 api.get("/recipes", async (c) => {
   const user = c.get("user");
   const rows = await sql`
-    SELECT r.id, r.user_id, r.title, r.description, r.category, r.cuisine, r.tags, r.servings, r.prep_minutes,
+    SELECT r.id, r.user_id, r.title, r.description, r.category, r.cuisine, r.tags, r.equipment, r.servings, r.prep_minutes,
            r.cook_minutes, r.total_minutes, r.sources, r.has_image, r.image_version, r.created_at, r.updated_at,
            cardinality(r.ingredients)::int AS ingredient_count,
            (f.user_id IS NOT NULL) AS favorite,
@@ -277,8 +280,10 @@ api.post("/import", async (c) => {
   const url = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : null;
   // Pasted text (a caption, a message) wins over fetching: it's what the person sees.
   const text = typeof b.text === "string" ? b.text.trim().slice(0, 20_000) : "";
+  // The recipe data the bookmarklet read on the page, in your browser (sites that turn the server away).
+  const ld = typeof b.ld === "string" && b.ld.length <= 500_000 ? b.ld : "";
   if (!url && !text) throw bad("Paste the address of a recipe, or its text");
-  const { draft, partial } = text ? await importText(text, url) : await importRecipe(url!);
+  const { draft, partial } = ld && url ? importJsonLd(ld, url) : text ? await importText(text, url) : await importRecipe(url!);
   const first = draft.sources.find((s) => s.url)?.url;
   const [existing] = first ? await sql<{ id: string }[]>`SELECT id FROM recipes WHERE sources @> ${sql.json([{ url: first }])} LIMIT 1` : [];
   return c.json({ draft, partial, existingId: existing?.id ?? null });
@@ -295,6 +300,12 @@ api.post("/recipes/:id/sources", async (c) => {
   if (r.sources.length >= 12) throw bad("That's enough sources for one recipe");
   await sql`UPDATE recipes SET sources = ${sql.json([...r.sources, source] as never)}, updated_at = now() WHERE id = ${r.id}`;
   return c.json({ ok: true });
+});
+
+/** The equipment a recipe's text names (the editor's "Detect" button). */
+api.post("/equipment/detect", async (c) => {
+  const b = await body(c);
+  return c.json({ equipment: detectEquipment(typeof b.text === "string" ? b.text.slice(0, 50_000) : "") });
 });
 
 // --- Sharing ---
@@ -408,7 +419,7 @@ api.get("/export", async (c) => {
   const mine = c.req.query("mine") === "1";
   const recipes = await sql`
     SELECT title, description, category, cuisine, tags, servings, servings_label, prep_minutes, cook_minutes, total_minutes,
-           ingredients, steps, notes, sources, author, created_at, updated_at
+           ingredients, steps, notes, equipment, sources, author, created_at, updated_at
     FROM recipes ${mine ? sql`WHERE user_id = ${user.id}` : sql``} ORDER BY created_at`;
   c.header("Content-Disposition", `attachment; filename="recipes-${new Date().toISOString().slice(0, 10)}.json"`);
   return c.json({ app: "cooking", version: APP_VERSION, exportedAt: new Date(), recipes });

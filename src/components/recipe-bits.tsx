@@ -3,9 +3,10 @@
 import { useState, type CSSProperties } from "react";
 import { imageSrc } from "../lib/api";
 import { hueOf } from "../lib/recipes";
+import { equipmentName, equipmentOrder } from "../lib/equipment";
 import { useSettings } from "../lib/settings";
 import type { Source } from "../lib/api";
-import { BookOpen, ChefHat, Instagram, LinkIcon, Star, Video, Youtube } from "./icons";
+import { BookOpen, ChefHat, Instagram, LinkIcon, Star, Utensils, Video, Youtube } from "./icons";
 
 /** The icon of a source: Instagram, YouTube, any other video, a web page, or a book/notebook. */
 export function SourceIcon({ kind, size = 14 }: { kind: Source["kind"]; size?: number }) {
@@ -92,5 +93,27 @@ export function Stars({ value, onRate, size = 14 }: { value: number | null; onRa
         </button>
       ))}
     </span>
+  );
+}
+
+/** What a recipe needs ("Four · Mixeur"): chips that filter the cookbook when `onPick` is given. */
+export function EquipmentList({ keys, onPick }: { keys: string[]; onPick?: (key: string) => void }) {
+  const { t, lang } = useSettings();
+  const sorted = [...keys].sort((a, b) => equipmentOrder(a) - equipmentOrder(b));
+  return (
+    <div className="equipment-list" aria-label={t("equipment")}>
+      <Utensils size={14} />
+      {sorted.map((key) =>
+        onPick ? (
+          <button key={key} className="equipment-chip" title={t("recipesNeeding", { name: equipmentName(key, lang) })} onClick={() => onPick(key)}>
+            {equipmentName(key, lang)}
+          </button>
+        ) : (
+          <span key={key} className="equipment-chip">
+            {equipmentName(key, lang)}
+          </span>
+        ),
+      )}
+    </div>
   );
 }

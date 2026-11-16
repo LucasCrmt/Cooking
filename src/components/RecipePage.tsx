@@ -12,7 +12,7 @@ import { ShareDialog } from "./ShareDialog";
 import { Dropdown as Floating } from "./pickers";
 import { CircleCheck, Clock, ExternalLink, Flame, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Trash, Users } from "./icons";
 import { FavoriteButton } from "./RecipesPage";
-import { RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
+import { EquipmentList, RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
 
 export function RecipePage({ id }: { id: string }) {
@@ -68,6 +68,7 @@ export function RecipePage({ id }: { id: string }) {
         notes: r.notes,
         sources: r.sources,
         author: r.author,
+        equipment: r.equipment,
       },
       currentImage: r.hasImage ? imageSrc(r) : null,
     });
@@ -211,6 +212,7 @@ export function RecipePage({ id }: { id: string }) {
                     {t("iCookedIt")}
                   </button>
                 </div>
+                {r.equipment.length > 0 && <EquipmentList keys={r.equipment} onPick={(key) => navigate({ name: "recipes" }, { equipment: key })} />}
                 {r.tags.length > 0 && (
                   <div className="tag-list">
                     {r.tags.map((tag) => (

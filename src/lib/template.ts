@@ -4,6 +4,7 @@
 
 import type { Lang } from "./i18n";
 import { CATEGORIES, CUISINES } from "./recipes";
+import { EQUIPMENT } from "./equipment";
 
 export function recipeTemplate(lang: Lang): string {
   return lang === "fr"
@@ -23,6 +24,11 @@ source:
 # Titre de la recette
 
 > Une phrase pour décrire le plat.
+
+## Matériel
+
+- Four
+- Mixeur
 
 ## Ingrédients
 
@@ -56,6 +62,11 @@ source:
 
 > One sentence about the dish.
 
+## Equipment
+
+- Oven
+- Blender
+
 ## Ingredients
 
 ### For the sauce
@@ -79,17 +90,19 @@ export function aiPrompt(lang: Lang): string {
     lang === "fr"
       ? `Écris la recette ci-dessous (ou celle dont je te parle) en Markdown, exactement dans ce modèle, en français :
 - en-tête entre --- : title, category (une parmi : ${CATEGORIES.fr.join(", ")}), cuisine (une parmi : ${CUISINES.fr.join(", ")}, ou autre), tags (3 à 6 mots-clés), servings (nombre et unité), prep_time, cook_time, total_time (en minutes ou heures), author et source si connus ;
+- "## Matériel" : une ligne "- " par appareil nécessaire, parmi : ${EQUIPMENT.map((e) => e.fr).join(", ")} (rien d'autre : les ustensiles ordinaires vont dans les notes) ;
 - "## Ingrédients" : une ligne "- " par ingrédient avec sa quantité ; des sous-parties "### " si la recette en a ;
 - "## Préparation" : étapes numérotées, une action par étape ; des sous-parties "### " si besoin ;
-- "## Notes" (et "## Matériel" si utile) pour le reste.
+- "## Notes" pour le reste.
 Réponds seulement avec la recette, sans commentaire.
 
 Modèle :`
       : `Write the recipe below (or the one I describe) as Markdown, exactly in this template, in English:
 - front matter between ---: title, category (one of: ${CATEGORIES.en.join(", ")}), cuisine (one of: ${CUISINES.en.join(", ")}, or another), tags (3 to 6 keywords), servings (number and unit), prep_time, cook_time, total_time (in minutes or hours), author and source if known;
+- "## Equipment": one "- " line per appliance needed, from: ${EQUIPMENT.map((e) => e.en).join(", ")} (nothing else: ordinary utensils go in the notes);
 - "## Ingredients": one "- " line per ingredient with its quantity; "### " subsections if the recipe has parts;
 - "## Method": numbered steps, one action each; "### " subsections if needed;
-- "## Notes" (and "## Equipment" if useful) for the rest.
+- "## Notes" for the rest.
 Answer with the recipe only, no commentary.
 
 Template:`;

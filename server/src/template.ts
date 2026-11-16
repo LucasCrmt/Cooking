@@ -42,6 +42,8 @@ export interface TemplateRecipe {
   steps: string[];
   notes: string;
   author: string;
+  /** The "## Matériel" section and the front matter's "equipment", as written. */
+  equipment: string[];
   sourceUrls: string[];
   sourceNames: string[];
   imageUrl: string | null;
@@ -58,7 +60,7 @@ const norm = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const KEYS: Record<string, keyof TemplateRecipe | "servings" | "source" | "image"> = {
+const KEYS: Record<string, keyof TemplateRecipe | "servings" | "source" | "image" | "equipment"> = {
   title: "title",
   titre: "title",
   nom: "title",
@@ -111,15 +113,20 @@ const KEYS: Record<string, keyof TemplateRecipe | "servings" | "source" | "image
   "image url": "image",
   notes: "notes",
   note: "notes",
+  equipment: "equipment",
+  materiel: "equipment",
+  ustensiles: "equipment",
+  tools: "equipment",
 };
 
-type Section = "ingredients" | "steps" | "notes" | "description" | "other";
+type Section = "ingredients" | "steps" | "notes" | "description" | "equipment" | "other";
 
 function sectionOf(heading: string): Section {
   const h = norm(heading);
   if (/^(ingredients?|ce quil (vous |te )?faut|liste de courses|shopping list)\b/.test(h)) return "ingredients";
   if (/^(preparation|etapes?|instructions?|methode|method|directions|steps|recette|realisation|deroule|how to)\b/.test(h)) return "steps";
   if (/^(notes?|astuces?|conseils?|tips?|remarques?)\b/.test(h)) return "notes";
+  if (/^(materiel|ustensiles?|equipment|equipement|tools|you will need)\b/.test(h)) return "equipment";
   if (/^(description|resume|summary|introduction|intro)\b/.test(h)) return "description";
   return "other";
 }
@@ -215,6 +222,7 @@ export function parseTemplate(text: string): TemplateRecipe {
     steps: [],
     notes: "",
     author: "",
+    equipment: [],
     sourceUrls: [],
     sourceNames: [],
     imageUrl: null,
@@ -240,17 +248,21 @@ export function parseTemplate(text: string): TemplateRecipe {
         const v = scalar(listItem[1]);
         if (listKey === "tags") r.tags.push(v.replace(/^#/, ""));
         else if (listKey === "source") addSource(v);
+        else if (listKey === "equipment") r.equipment.push(v);
         continue;
       }
       const kv = /^([^:#][^:]*):\s*(.*)$/.exec(line);
       if (!kv) continue;
       const key = KEYS[norm(kv[1])];
       const v = scalar(kv[2]);
-      listKey = !v && (key === "tags" || key === "source") ? key : null;
+      listKey = !v && (key === "tags" || key === "source" || key === "equipment") ? key : null;
       if (!key || !v) continue;
       switch (key) {
         case "tags":
           r.tags.push(...listOf(v));
+          break;
+        case "equipment":
+          r.equipment.push(...listOf(v));
           break;
         case "servings": {
           const n = /\d+/.exec(v);
@@ -349,6 +361,10 @@ export function parseTemplate(text: string): TemplateRecipe {
           paragraph.push(li);
         } else if (!line.trim()) flushStep();
         else paragraph.push(line.trim());
+        break;
+      case "equipment":
+        if (li !== null) r.equipment.push(plain(li));
+        else if (line.trim() && !quote) r.equipment.push(...plain(line).split(/\s*[,;]\s*/).filter(Boolean));
         break;
       case "notes":
       case "other":

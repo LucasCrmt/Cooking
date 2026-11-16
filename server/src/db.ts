@@ -142,6 +142,10 @@ const MIGRATIONS: string[] = [
   CREATE INDEX recipe_shares_to ON recipe_shares(to_user, created_at DESC);
   ALTER TABLE recipes ADD COLUMN share_token text UNIQUE;
   `,
+  /* 5: the equipment a recipe needs (keys such as 'oven', 'blender'; see equipment.ts), to filter by */ `
+  ALTER TABLE recipes ADD COLUMN equipment text[] NOT NULL DEFAULT '{}';
+  CREATE INDEX recipes_equipment ON recipes USING gin (equipment);
+  `,
 ];
 
 export async function migrate() {
