@@ -4,7 +4,7 @@ import { blankRecipe, counts } from "../lib/recipes";
 import type { ListName } from "../lib/router";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
-import { BookOpen, ChefHat, Heart, PanelLeft, Plus, Search, Share, Tag, Utensils } from "./icons";
+import { BookOpen, ChefHat, Heart, PanelLeft, Plus, Search, Share, Utensils } from "./icons";
 
 
 const MIN_W = 200;
@@ -18,7 +18,6 @@ export function Sidebar() {
   const newShared = (shared ?? []).filter((s) => !s.seenAt).length;
   const all = recipes ?? [];
   const categories = useMemo(() => counts(all, (r) => [r.category]), [all]);
-  const tags = useMemo(() => counts(all, (r) => r.tags).slice(0, 20), [all]);
   const list = route.name === "recipe" || route.name === "shared" ? null : route.name;
 
   const nav: [ListName, StringKey, ReactNode, number][] = [
@@ -59,7 +58,7 @@ export function Sidebar() {
         </button>
       </nav>
 
-      {/* Only the categories and tags scroll; the header and lists stay put. */}
+      {/* Only the categories scroll; the header and lists stay put. Tags are in the Filters panel. */}
       <div className="sidebar-scroll">
         {categories.length > 0 && (
           <div className="sidebar-group">
@@ -73,23 +72,6 @@ export function Sidebar() {
               >
                 <Utensils />
                 <span className="row-label">{c}</span>
-                <span className="row-meta">{n}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {tags.length > 0 && (
-          <div className="sidebar-group">
-            <div className="sidebar-group-title">{t("tags")}</div>
-            {tags.map(([tag, n]) => (
-              <button
-                key={tag}
-                className={`sidebar-row${list && query.tag === tag ? " active" : ""}`}
-                onClick={() => navigate({ name: list ?? "recipes" }, { tag })}
-                title={tag}
-              >
-                <Tag />
-                <span className="row-label">{tag}</span>
                 <span className="row-meta">{n}</span>
               </button>
             ))}

@@ -23,7 +23,7 @@ const en = {
   togglePanel: "Toggle side panel",
   signOut: "Sign out",
   // List
-  filterRecipes: "Filter recipes…",
+  filterRecipes: "Search for a recipe…",
   view: "View",
   viewGrid: "Photo grid",
   viewList: "Compact list",
@@ -326,7 +326,7 @@ const fr: Record<StringKey, string> = {
   toggleSidebar: "Afficher/masquer la barre latérale",
   togglePanel: "Afficher/masquer le panneau",
   signOut: "Se déconnecter",
-  filterRecipes: "Filtrer les recettes…",
+  filterRecipes: "Rechercher une recette…",
   view: "Affichage",
   viewGrid: "Grille de photos",
   viewList: "Liste compacte",
