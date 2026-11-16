@@ -190,6 +190,8 @@ api.get("/recipes/:id", async (c) => {
       (SELECT round(avg(stars)::numeric, 1)::float FROM ratings WHERE recipe_id = ${r.id}) AS rating,
       (SELECT count(*)::int FROM ratings WHERE recipe_id = ${r.id}) AS rating_count,
       (SELECT count(*)::int FROM cooked WHERE recipe_id = ${r.id}) AS cooked_count,
+      (SELECT coalesce(array_agg(coalesce(nullif(u.name, ''), u.id) ORDER BY c.cooked_at), '{}')
+         FROM cooked c JOIN users u ON u.id = c.user_id WHERE c.recipe_id = ${r.id}) AS cooked_by,
       (SELECT max(cooked_at) FROM cooked WHERE recipe_id = ${r.id} AND user_id = ${user.id}) AS last_cooked_at,
       (SELECT coalesce(nullif(name, ''), id) FROM users WHERE id = ${r.userId}) AS added_by`;
   return c.json({ ...r, ...extra, canEdit: canEdit(user, r) });
@@ -254,10 +256,13 @@ api.put("/recipes/:id/rating", async (c) => {
   return c.json({ ok: true });
 });
 
-api.post("/recipes/:id/cooked", async (c) => {
+/** "I cooked it", on or off: one mark per person, so the recipe counts the people who made it. */
+api.put("/recipes/:id/cooked", async (c) => {
   const user = c.get("user");
   const r = await recipeOr404(c);
-  await sql`INSERT INTO cooked (user_id, recipe_id) VALUES (${user.id}, ${r.id})`;
+  if ((await body(c)).on === true) {
+    await sql`INSERT INTO cooked (user_id, recipe_id) VALUES (${user.id}, ${r.id}) ON CONFLICT (user_id, recipe_id) DO UPDATE SET cooked_at = now()`;
+  } else await sql`DELETE FROM cooked WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
   return c.json({ ok: true });
 });
 

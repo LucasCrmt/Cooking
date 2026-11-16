@@ -83,7 +83,9 @@ export function RecipePage({ id }: { id: string }) {
     }
   };
 
-  // E edits, F (un)favourites, C marks it cooked.
+  const toggleCooked = () => r && void act("/cooked", "PUT", { on: !r.lastCookedAt }, r.lastCookedAt ? undefined : t("cookedSaved"));
+
+  // E edits, F (un)favourites, C marks it cooked (or not).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || !r) return;
@@ -92,6 +94,7 @@ export function RecipePage({ id }: { id: string }) {
       const k = e.key.toLowerCase();
       if (k === "e" && r.canEdit) edit();
       else if (k === "f") void act("/favorite", "PUT", { on: !r.favorite });
+      else if (k === "c") toggleCooked();
       else return;
       e.preventDefault();
     };
@@ -196,9 +199,9 @@ export function RecipePage({ id }: { id: string }) {
                   {r.cookedCount > 0 && (
                     <span className="fact">
                       <Flame size={15} />
-                      <span className="muted small">
-                        {t("cookedTimes", { n: r.cookedCount })}
-                        {r.lastCookedAt && ` · ${t("lastTime", { when: f.relative(r.lastCookedAt, t) })}`}
+                      <span className="muted small" title={r.cookedBy.join(", ")}>
+                        {t("cookedByPeople", { n: r.cookedCount })}
+                        {r.cookedBy.length > 0 && r.cookedBy.length <= 4 && ` · ${r.cookedBy.join(", ")}`}
                       </span>
                     </span>
                   )}
@@ -207,9 +210,14 @@ export function RecipePage({ id }: { id: string }) {
                   <Stars value={r.myRating} size={18} onRate={(stars) => void act("/rating", "PUT", { stars })} />
                   {r.ratingCount > 1 && r.rating && <span className="muted small">{t("averageOf", { avg: f.decimal(r.rating), n: r.ratingCount })}</span>}
                   <div className="toolbar-spacer" />
-                  <button className="text-button" onClick={() => void act("/cooked", "POST", {}, t("cookedSaved"))}>
+                  <button
+                    className={`text-button cooked-toggle${r.lastCookedAt ? " on" : ""}`}
+                    aria-pressed={!!r.lastCookedAt}
+                    title={`${r.lastCookedAt ? t("uncookIt") : t("iCookedIt")} (C)`}
+                    onClick={toggleCooked}
+                  >
                     <CircleCheck size={15} />
-                    {t("iCookedIt")}
+                    {r.lastCookedAt ? t("cookedByMe") : t("iCookedIt")}
                   </button>
                 </div>
                 {r.equipment.length > 0 && <EquipmentList keys={r.equipment} onPick={(key) => navigate({ name: "recipes" }, { equipment: key })} />}

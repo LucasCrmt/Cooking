@@ -1047,3 +1047,12 @@ button.equipment-chip:hover {
 .filter-option.active.without .filter-check {
   color: var(--accent);
 }
+
+/* "Je l'ai cuisinée": on/off. */
+.cooked-toggle.on {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.cooked-toggle.on:hover {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+}

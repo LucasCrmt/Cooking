@@ -188,7 +188,7 @@ function DetailsPanel({ id }: { id: string }) {
           {row("addedByLabel", r.addedBy)}
           {row("created", f.mediumDateTime(r.createdAt))}
           {row("updated", r.updatedAt !== r.createdAt ? f.mediumDateTime(r.updatedAt) : null)}
-          {row("cookedLabel", r.cookedCount ? t("cookedTimes", { n: r.cookedCount }) : null)}
+          {row("cookedLabel", r.cookedCount ? `${t("cookedByPeople", { n: r.cookedCount })} (${r.cookedBy.join(", ")})` : null)}
         </section>
       )}
     </PanelShell>

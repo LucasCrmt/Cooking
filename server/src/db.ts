@@ -146,6 +146,13 @@ const MIGRATIONS: string[] = [
   ALTER TABLE recipes ADD COLUMN equipment text[] NOT NULL DEFAULT '{}';
   CREATE INDEX recipes_equipment ON recipes USING gin (equipment);
   `,
+  /* 6: "I cooked it" becomes an on/off mark per person (the recipe counts the people who made it):
+        keep each person's latest mark per recipe */ `
+  DELETE FROM cooked c USING cooked newer
+    WHERE newer.user_id = c.user_id AND newer.recipe_id = c.recipe_id
+      AND (newer.cooked_at, newer.ctid) > (c.cooked_at, c.ctid);
+  ALTER TABLE cooked ADD PRIMARY KEY (user_id, recipe_id);
+  `,
 ];
 
 export async function migrate() {

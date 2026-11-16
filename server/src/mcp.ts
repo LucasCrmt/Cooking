@@ -186,7 +186,7 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
         sources: r.sources,
         hasPhoto: r.hasImage,
         rating: extra.rating,
-        timesCooked: extra.cookedCount,
+        cookedByPeople: extra.cookedCount,
         addedBy: extra.addedBy,
         canEdit: canEdit(user, r),
         createdAt: r.createdAt,

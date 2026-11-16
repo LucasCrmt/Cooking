@@ -60,8 +60,10 @@ const en = {
   noSteps: "No steps written down.",
   resetServings: "Reset",
   iCookedIt: "I cooked it",
+  cookedByMe: "Cooked",
+  uncookIt: "Unmark: I haven't cooked it",
   cookedSaved: "Noted. Enjoy!",
-  cookedTimes: "Cooked {n}×",
+  cookedByPeople: "Cooked by {n} {n|person|people}",
   lastTime: "last {when}",
   yourRating: "Your rating",
   ratingOf: "{n} out of 5",
@@ -271,7 +273,7 @@ const en = {
   nobodyElse: "Nobody else has an account yet.",
   shareNotePlaceholder: "A note (optional): “To try this weekend!”",
   send: "Send",
-  shareSent: "Sent to {n} person(s)",
+  shareSent: "Sent to {n} {n|person|people}",
   publicLink: "Public link",
   publicLinkHint: "Anyone with the link can see the recipe, without an account (read-only). Turn it off at any time: the link stops working.",
   createLink: "Create a link",
@@ -362,8 +364,10 @@ const fr: Record<StringKey, string> = {
   noSteps: "Aucune étape écrite.",
   resetServings: "Réinitialiser",
   iCookedIt: "Je l'ai cuisinée",
+  cookedByMe: "Cuisinée",
+  uncookIt: "Retirer : je ne l'ai pas cuisinée",
   cookedSaved: "C'est noté. Bon appétit !",
-  cookedTimes: "Cuisinée {n} fois",
+  cookedByPeople: "Cuisinée par {n} {n|personne|personnes}",
   lastTime: "dernière fois {when}",
   yourRating: "Votre note",
   ratingOf: "{n} sur 5",
@@ -569,7 +573,7 @@ const fr: Record<StringKey, string> = {
   nobodyElse: "Personne d'autre n'a encore de compte.",
   shareNotePlaceholder: "Un mot (facultatif) : « À tester ce week-end ! »",
   send: "Envoyer",
-  shareSent: "Envoyée à {n} personne(s)",
+  shareSent: "Envoyée à {n} {n|personne|personnes}",
   publicLink: "Lien public",
   publicLinkHint: "Toute personne qui a le lien voit la recette, sans compte (en lecture seule). Désactivez-le quand vous voulez : le lien ne marche plus.",
   createLink: "Créer un lien",
@@ -611,7 +615,12 @@ export function resolveLang(setting: "auto" | Lang): Lang {
 
 export function makeT(lang: Lang): Translate {
   const strings = lang === "fr" ? fr : en;
-  return (key, vars) => strings[key].replace(/\{(\w+)\}/g, (_, name: string) => String(vars?.[name] ?? `{${name}}`));
+  // "{n|personne|personnes}": the singular or plural by the number (French: 0 and 1 are singular).
+  const one = (n: number) => (lang === "fr" ? Math.abs(n) < 2 : n === 1);
+  return (key, vars) =>
+    strings[key]
+      .replace(/\{(\w+)\|([^|}]*)\|([^}]*)\}/g, (_, name: string, singular: string, plural: string) => (one(Number(vars?.[name])) ? singular : plural))
+      .replace(/\{(\w+)\}/g, (_, name: string) => String(vars?.[name] ?? `{${name}}`));
 }
 
 export type Formats = ReturnType<typeof makeFormats>;

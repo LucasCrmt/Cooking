@@ -127,7 +127,11 @@ export interface Recipe extends RecipeFields {
   myRating: number | null;
   rating: number | null;
   ratingCount: number;
+  /** How many people marked it as cooked (each person once). */
   cookedCount: number;
+  /** Their names, first one first. */
+  cookedBy: string[];
+  /** When you marked it as cooked; null: you haven't. */
   lastCookedAt: string | null;
   addedBy: string | null;
   canEdit: boolean;
