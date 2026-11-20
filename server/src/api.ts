@@ -11,6 +11,7 @@ import { cleanUrl, kindOf, sourceName, type Source } from "./caption.ts";
 import { RELEASES_URL, updateStatus } from "./updates.ts";
 import { USERNAME, getUser, meView, type User } from "./users.ts";
 import { detectEquipment, equipmentInput } from "./equipment.ts";
+import { createPlan, deletePlan, listPlans, updatePlan, upcomingPlans } from "./plans.ts";
 
 export const api = new Hono<AppEnv>();
 api.use("*", requireUser);
@@ -199,7 +200,7 @@ api.get("/recipes/:id", async (c) => {
          FROM cooked c JOIN users u ON u.id = c.user_id WHERE c.recipe_id = ${r.id}) AS cooked_by,
       (SELECT max(cooked_at) FROM cooked WHERE recipe_id = ${r.id} AND user_id = ${user.id}) AS last_cooked_at,
       (SELECT coalesce(nullif(name, ''), id) FROM users WHERE id = ${r.userId}) AS added_by`;
-  return c.json({ ...r, ...extra, canEdit: canEdit(user, r) });
+  return c.json({ ...r, ...extra, plans: await upcomingPlans(user.id, r.id), canEdit: canEdit(user, r) });
 });
 
 /** Adds a recipe for `user` (from the app or the MCP server). */
@@ -327,6 +328,23 @@ api.post("/recipes/:id/sources", async (c) => {
 api.post("/equipment/detect", async (c) => {
   const b = await body(c);
   return c.json({ equipment: detectEquipment(typeof b.text === "string" ? b.text.slice(0, 50_000) : "") });
+});
+
+// --- Calendar ---
+
+/** Your plans between two days (?from=2026-11-01&to=2026-11-30). Nobody else's: plans are private. */
+api.get("/plans", async (c) => c.json(await listPlans(c.get("user").id, c.req.query("from") ?? "", c.req.query("to") ?? "")));
+
+api.post("/plans", async (c) => c.json(await createPlan(c.get("user"), await body(c))));
+
+api.patch("/plans/:id", async (c) => {
+  await updatePlan(c.get("user"), c.req.param("id"), await body(c));
+  return c.json({ ok: true });
+});
+
+api.delete("/plans/:id", async (c) => {
+  await deletePlan(c.get("user"), c.req.param("id"));
+  return c.json({ ok: true });
 });
 
 // --- Sharing ---

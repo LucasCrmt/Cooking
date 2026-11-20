@@ -1080,3 +1080,57 @@ button.equipment-chip:hover {
   flex: none;
   color: var(--primary);
 }
+
+/* Plan dialog: choosing the recipe. */
+.plan-recipes {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.plan-recipe {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+}
+.plan-recipe:hover {
+  background: var(--hover);
+}
+.plan-recipe.active {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.plan-recipe .recipe-image.thumb {
+  width: 36px;
+  height: 28px;
+  flex: none;
+}
+
+/* A recipe's upcoming plans. */
+.recipe-plans {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.recipe-plans .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.recipe-plans .link-button::first-letter {
+  text-transform: uppercase;
+}
+
+
+.recipe-steps .recipe-plans {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}

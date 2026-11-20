@@ -142,6 +142,8 @@ export interface Recipe extends RecipeFields {
   /** When you marked it as cooked; null: you haven't. */
   lastCookedAt: string | null;
   addedBy: string | null;
+  /** Its plans from today on (the calendar). */
+  plans: RecipePlan[];
   canEdit: boolean;
   /** The public link's token (/s/<token>), when it's on. */
   shareToken: string | null;
@@ -214,3 +216,27 @@ export interface AdminUser {
 }
 
 export const imageSrc = (r: { id: string; imageVersion: number }) => `/api/app/recipes/${r.id}/image?v=${r.imageVersion}`;
+
+/** One of your planned recipes (GET /app/plans). Plans are private: only yours. */
+export interface Plan {
+  id: string;
+  recipeId: string;
+  /** "2026-11-26" */
+  day: string;
+  /** "breakfast", "lunch", "snack", "dinner" or "" (any time). */
+  meal: string;
+  note: string;
+  title: string;
+  hasImage: boolean;
+  imageVersion: number;
+  totalMinutes: number | null;
+  category: string;
+}
+
+/** One of your upcoming plans of a recipe (on its page). Plans are private. */
+export interface RecipePlan {
+  id: string;
+  day: string;
+  meal: string;
+  note: string;
+}

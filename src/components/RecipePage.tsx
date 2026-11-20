@@ -2,15 +2,17 @@
 // servings you pick, ticked off as you go) beside the steps. The screen stays on while it's open.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, imageSrc, type Recipe } from "../lib/api";
+import { api, imageSrc, type Recipe, type RecipePlan } from "../lib/api";
 import { useApp } from "../lib/app";
 import { useApi } from "../lib/hooks";
 import { headingText, isHeading, scaleIngredient, totalOf } from "../lib/recipes";
 import { useSettings } from "../lib/settings";
 import { ConfirmDialog, Dialog, useToast } from "./common";
 import { ShareDialog } from "./ShareDialog";
+import { PlanDialog, mealKey } from "./PlanDialog";
+import { fromDay } from "../lib/dates";
 import { Dropdown as Floating } from "./pickers";
-import { CircleCheck, Clock, ExternalLink, Flame, ListTodo, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Square, SquareCheck, Trash, Users } from "./icons";
+import { Calendar, CircleCheck, Clock, ExternalLink, Flame, ListTodo, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Square, SquareCheck, Trash, Users } from "./icons";
 import { FavoriteButton } from "./RecipesPage";
 import { EquipmentList, RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
@@ -27,6 +29,8 @@ export function RecipePage({ id }: { id: string }) {
   const [deleting, setDeleting] = useState(false);
   const [addingSource, setAddingSource] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [planning, setPlanning] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<RecipePlan | null>(null);
 
   // Opening a recipe someone sent you marks it as seen.
   const unseen = !!shared?.some((s) => s.recipeId === id && !s.seenAt);
@@ -143,6 +147,10 @@ export function RecipePage({ id }: { id: string }) {
         {r && (
           <>
             <FavoriteButton recipe={r} />
+            <button className="text-button" title={t("planRecipe")} onClick={() => setPlanning(true)}>
+              <Calendar size={14} />
+              <span className="hide-mobile">{t("planIt")}</span>
+            </button>
             <button className="text-button" title={t("share")} onClick={() => setSharing(true)}>
               <Share size={14} />
               <span className="hide-mobile">{t("share")}</span>
@@ -310,6 +318,23 @@ export function RecipePage({ id }: { id: string }) {
                     <p>{r.notes}</p>
                   </div>
                 )}
+                {r.plans.length > 0 && (
+                  <ul className="recipe-plans small">
+                    {r.plans.map((p) => {
+                      const meal = mealKey(p.meal);
+                      return (
+                        <li key={p.id}>
+                          <button className="link-button" title={t("changePlan")} onClick={() => setEditingPlan(p)}>
+                            <Calendar size={13} />
+                            {t("plannedOn", { day: new Intl.DateTimeFormat(f.locale, { weekday: "long", day: "numeric", month: "long" }).format(fromDay(p.day)) })}
+                            {meal && ` · ${t(meal).toLowerCase()}`}
+                          </button>
+                          {p.note && <span className="muted"> · {p.note}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </section>
             </div>
 
@@ -323,6 +348,14 @@ export function RecipePage({ id }: { id: string }) {
         )}
       </div>
       {addingSource && r && <AddSourceDialog id={r.id} onClose={() => setAddingSource(false)} />}
+      {planning && r && <PlanDialog recipe={r} onClose={() => setPlanning(false)} onSaved={req.reload} />}
+      {editingPlan && r && (
+        <PlanDialog
+          plan={{ ...editingPlan, recipeId: r.id, title: r.title, hasImage: r.hasImage, imageVersion: r.imageVersion, totalMinutes: r.totalMinutes, category: r.category }}
+          onClose={() => setEditingPlan(null)}
+          onSaved={req.reload}
+        />
+      )}
       {sharing && r && <ShareDialog recipe={r} onClose={() => setSharing(false)} onChanged={req.reload} />}
       {deleting && r && (
         <ConfirmDialog

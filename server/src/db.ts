@@ -162,6 +162,21 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX todo_recipe ON todo(recipe_id);
   `,
+  /* 8: the calendar: who plans to make which recipe on which day (and for which meal). One shared
+        household calendar, like the cookbook; each plan belongs to whoever made it */ `
+  CREATE TABLE plans (
+    id bigserial PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recipe_id bigint NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    day date NOT NULL,
+    -- 'breakfast', 'lunch', 'snack', 'dinner', or '' (any time that day).
+    meal text NOT NULL DEFAULT '',
+    note text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  CREATE INDEX plans_day ON plans(day);
+  CREATE INDEX plans_recipe ON plans(recipe_id, day);
+  `,
 ];
 
 export async function migrate() {

@@ -16,12 +16,14 @@ import { HttpError, rateLimit } from "./http.ts";
 import { canEdit, createRecipe, imageInput, recipeInput, saveImage, type RecipeRow } from "./api.ts";
 import { importRecipe, importText } from "./importer.ts";
 import { EQUIPMENT } from "./equipment.ts";
+import { MEALS, createPlan, deletePlan, listPlans } from "./plans.ts";
 import { getUser, type User } from "./users.ts";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
 const INSTRUCTIONS = `Cooking is a household cookbook. Use search_recipes to find recipes (by title, ingredient, tag, category), get_recipe to read one in full.
 To add a recipe: if the person gives a link or a pasted text, call import_recipe first (it reads recipe sites, YouTube descriptions and captions) and then create_recipe with the draft, completed or corrected; otherwise write the recipe yourself and call create_recipe.
+To plan when to make a recipe, use plan_recipe (list_plans shows the calendar and today's date: use it to turn "jeudi soir" into a date).
 Ingredients and steps are lists of lines; a line starting with "# " is a section heading ("# Pour la sauce"). Write recipes in the language the person uses. Always tell the person the link to the recipe you added.`;
 
 // --- Tool definitions ---
@@ -105,6 +107,41 @@ const TOOLS = [
       required: ["id"],
     },
     annotations: { idempotentHint: true },
+  },
+  {
+    name: "list_plans",
+    title: "Read the calendar",
+    description: "Your planned recipes between two days (default: today and the next 13 days). Plans are private: only yours. Also returns today's date.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "First day, YYYY-MM-DD (default today)" },
+        to: { type: "string", description: "Last day, YYYY-MM-DD (default from + 13 days)" },
+      },
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "plan_recipe",
+    title: "Plan a recipe",
+    description: "Puts a recipe in your plans on a day (and optionally a meal). Plans are private and show up in your own calendar app.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        recipeId: { type: "string", description: "The recipe id (search_recipes finds it)" },
+        day: { type: "string", description: "YYYY-MM-DD" },
+        meal: { type: "string", enum: [...MEALS], description: "Optional: breakfast, lunch, snack or dinner" },
+        note: { type: "string", description: "Optional: for how many, with whom…" },
+      },
+      required: ["recipeId", "day"],
+    },
+  },
+  {
+    name: "unplan_recipe",
+    title: "Remove a plan",
+    description: "Removes one of your plans (its id comes from list_plans).",
+    inputSchema: { type: "object", properties: { planId: { type: "string" } }, required: ["planId"] },
+    annotations: { destructiveHint: true },
   },
 ];
 
@@ -212,6 +249,29 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
         alreadyInCookbook: existing ? { id: existing.id, url: recipeUrl(existing.id) } : undefined,
       };
     }
+
+    case "list_plans": {
+      const today = new Date().toISOString().slice(0, 10);
+      const from = typeof a.from === "string" && a.from ? a.from : today;
+      const to = typeof a.to === "string" && a.to ? a.to : new Date(Date.parse(from) + 13 * 86_400_000).toISOString().slice(0, 10);
+      const plans = await listPlans(user.id, from, to);
+      return {
+        today,
+        from,
+        to,
+        plans: plans.map((p) => ({ id: p.id, day: p.day, meal: p.meal || undefined, recipeId: p.recipeId, title: p.title, note: p.note || undefined, url: recipeUrl(p.recipeId) })),
+      };
+    }
+
+    case "plan_recipe": {
+      const r = await recipeById(a.recipeId);
+      const { id } = await createPlan(user, { recipeId: r.id, day: a.day, meal: a.meal ?? "", note: a.note ?? "" });
+      return { planId: id, day: a.day, meal: a.meal || undefined, title: r.title, url: recipeUrl(r.id) };
+    }
+
+    case "unplan_recipe":
+      await deletePlan(user, String(a.planId ?? ""));
+      return { removed: true };
 
     case "create_recipe": {
       const { id, warning } = await createRecipe(user, a);
