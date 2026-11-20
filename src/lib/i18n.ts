@@ -339,7 +339,17 @@ const en = {
   planNote: "Note",
   planNotePlaceholder: "For 6, with the neighbours…",
   removePlan: "Remove",
+  downloadIcs: "Download (.ics)",
   changePlan: "Change or remove this plan",
+  seeInGoogleCalendar: "See it in Google Calendar…",
+  downloadIcsHint: "Your plans of the last 3 months and the next year, to import once.",
+  subscribeCalendar: "Subscribe (Google Calendar…)",
+  feedHint: "The recipes you plan show up in Google Calendar (Other calendars → + → From URL), Apple Calendar or Outlook, and follow changes (Google refreshes every few hours). Only your plans: nobody else sees them. Keep the address to yourself: whoever has it sees your plans.",
+  feedCreate: "Create the address",
+  feedRenew: "New address",
+  feedRenewHint: "The old one stops working.",
+  feedOff: "Turn off",
+  feedPublicNote: "Google fetches the address from the internet: this only works if Cooking is reachable at its public address.",
 };
 
 export type StringKey = keyof typeof en;
@@ -676,7 +686,17 @@ const fr: Record<StringKey, string> = {
   planNote: "Note",
   planNotePlaceholder: "Pour 6, avec les voisins…",
   removePlan: "Retirer",
+  downloadIcs: "Télécharger (.ics)",
   changePlan: "Modifier ou retirer ce plan",
+  seeInGoogleCalendar: "Le voir dans Google Agenda…",
+  downloadIcsHint: "Vos plans des 3 derniers mois et de l'année à venir, à importer une fois.",
+  subscribeCalendar: "S'abonner (Google Agenda…)",
+  feedHint: "Les recettes que vous planifiez apparaissent dans Google Agenda (Autres agendas → + → À partir de l'URL), Apple Calendrier ou Outlook, et suivent les changements (Google relit l'adresse toutes les quelques heures). Seulement vos plans : personne d'autre ne les voit. Gardez l'adresse pour vous : qui l'a voit vos plans.",
+  feedCreate: "Créer l'adresse",
+  feedRenew: "Nouvelle adresse",
+  feedRenewHint: "L'ancienne ne marchera plus.",
+  feedOff: "Désactiver",
+  feedPublicNote: "Google lit l'adresse depuis internet : cela ne marche que si Cooking est joignable à son adresse publique.",
 };
 
 export type Lang = "en" | "fr";

@@ -1129,6 +1129,14 @@ button.equipment-chip:hover {
 }
 
 
+.feed-controls {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.muted-link {
+  color: var(--text-muted);
+}
 .recipe-steps .recipe-plans {
   margin-top: 20px;
   padding-top: 14px;

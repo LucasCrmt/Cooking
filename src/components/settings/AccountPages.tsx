@@ -8,6 +8,7 @@ import { ConfirmDialog, useToast } from "../common";
 import { BookOpen, Download } from "../icons";
 import { PageHeader, Row, Switch, useSaveProfile } from "./common";
 import { connectPrefs, disconnectPrefs, usePrefsStatus } from "../../lib/prefs";
+import { CalendarFeed } from "./CalendarFeed";
 
 // --- Profile ---
 
@@ -280,6 +281,7 @@ export function DataPage() {
         </Row>
         <Row label={t("pasteToImport")} hint={t("pasteToImportHint")} />
       </section>
+      <CalendarFeed />
       <section className="settings-rows">
         <h3>{t("export")}</h3>
         <Row label={t("exportAll")} hint={t("exportHint", { n: recipes?.length ?? 0 })}>

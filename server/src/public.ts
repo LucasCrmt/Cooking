@@ -5,6 +5,8 @@
 import { Hono, type Context } from "hono";
 import { sql } from "./db.ts";
 import { HttpError, rateLimit } from "./http.ts";
+import { exportPlans } from "./plans.ts";
+import { icsCalendar } from "./ics.ts";
 
 export const publicRoutes = new Hono();
 
@@ -35,4 +37,14 @@ publicRoutes.get("/recipes/:token/image", async (c) => {
   if (!img) throw new HttpError(404, "Not found");
   // Not cached for long: turning the link off must stop the photo too.
   return c.body(new Uint8Array(img.data), 200, { "Content-Type": img.mime, "Cache-Control": "private, max-age=300" });
+});
+
+/** A person's calendar address, with their plans only: /api/public/calendar/<token>.ics (?lang=en). */
+publicRoutes.get("/calendar/:file", async (c) => {
+  rateLimit(c, "calendar-feed", 120, 10 * 60_000);
+  const token = /^([A-Za-z0-9_-]{24,64})\.ics$/.exec(c.req.param("file") ?? "")?.[1];
+  const [u] = token ? await sql<{ id: string }[]>`SELECT id FROM users WHERE calendar_token = ${token}` : [];
+  if (!u) throw new HttpError(404, "This calendar address doesn't work anymore");
+  const ics = icsCalendar(await exportPlans(u.id), { name: "Cooking", lang: c.req.query("lang") ?? "fr" });
+  return c.body(ics, 200, { "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" });
 });

@@ -177,6 +177,10 @@ const MIGRATIONS: string[] = [
   CREATE INDEX plans_day ON plans(day);
   CREATE INDEX plans_recipe ON plans(recipe_id, day);
   `,
+  /* 9: each person's private calendar address (/api/public/calendar/<token>.ics), so their plans
+        show up in Google Calendar, Apple Calendar or Outlook */ `
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_token text UNIQUE;
+  `,
 ];
 
 export async function migrate() {

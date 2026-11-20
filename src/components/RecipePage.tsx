@@ -19,7 +19,7 @@ import { Toolbar } from "./Toolbar";
 
 export function RecipePage({ id }: { id: string }) {
   const { t, f, settings } = useSettings();
-  const { navigate, openEditor, reloadRecipes, shared, reloadShared } = useApp();
+  const { navigate, openEditor, reloadRecipes, shared, reloadShared, openSettings } = useApp();
   const toast = useToast();
   const req = useApi<Recipe>(`/app/recipes/${id}`);
   const r = req.data;
@@ -333,6 +333,11 @@ export function RecipePage({ id }: { id: string }) {
                         </li>
                       );
                     })}
+                    <li>
+                      <button className="link-button small muted-link" onClick={() => openSettings("data")}>
+                        {t("seeInGoogleCalendar")}
+                      </button>
+                    </li>
                   </ul>
                 )}
               </section>

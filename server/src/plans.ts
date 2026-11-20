@@ -1,5 +1,5 @@
 // Planned recipes: when someone means to make which recipe. Plans are private: each person only
-// ever sees, changes or exports their own.
+// ever sees, changes or exports their own (to their calendar app, through the .ics address).
 // Someone else's plan is "not found", for admins too.
 //
 // Days are plain dates ("2026-11-26"), no time zone: a dinner is planned for a day, not an instant.
@@ -93,4 +93,10 @@ export async function updatePlan(user: User, id: string, b: Record<string, unkno
 export async function deletePlan(user: User, id: string) {
   await ownPlan(user, id);
   await sql`DELETE FROM plans WHERE id = ${id} AND user_id = ${user.id}`;
+}
+
+/** What a person's export holds: their plans from 3 months ago to a year ahead. */
+export function exportPlans(userId: string): Promise<Plan[]> {
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  return listPlans(userId, day(-92), day(366), 460);
 }

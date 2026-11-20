@@ -11,7 +11,8 @@ import { cleanUrl, kindOf, sourceName, type Source } from "./caption.ts";
 import { RELEASES_URL, updateStatus } from "./updates.ts";
 import { USERNAME, getUser, meView, type User } from "./users.ts";
 import { detectEquipment, equipmentInput } from "./equipment.ts";
-import { createPlan, deletePlan, listPlans, updatePlan, upcomingPlans } from "./plans.ts";
+import { createPlan, deletePlan, exportPlans, listPlans, updatePlan, upcomingPlans } from "./plans.ts";
+import { icsCalendar } from "./ics.ts";
 
 export const api = new Hono<AppEnv>();
 api.use("*", requireUser);
@@ -336,6 +337,33 @@ api.post("/equipment/detect", async (c) => {
 api.get("/plans", async (c) => c.json(await listPlans(c.get("user").id, c.req.query("from") ?? "", c.req.query("to") ?? "")));
 
 api.post("/plans", async (c) => c.json(await createPlan(c.get("user"), await body(c))));
+
+/** Your plans as a file to import (?lang=en for English meal names). */
+api.get("/plans.ics", async (c) => {
+  const ics = icsCalendar(await exportPlans(c.get("user").id), { name: "Cooking", lang: c.req.query("lang") ?? "fr" });
+  return c.body(ics, 200, {
+    "Content-Type": "text/calendar; charset=utf-8",
+    "Content-Disposition": `attachment; filename="cooking-${new Date().toISOString().slice(0, 10)}.ics"`,
+  });
+});
+
+/** Your private calendar address: whether there is one. */
+api.get("/calendar-feed", async (c) => {
+  const [u] = await sql<{ calendarToken: string | null }[]>`SELECT calendar_token FROM users WHERE id = ${c.get("user").id}`;
+  return c.json({ token: u?.calendarToken ?? null });
+});
+
+/** A new private address (the previous one stops working). */
+api.post("/calendar-feed", async (c) => {
+  const token = randomToken(24);
+  await sql`UPDATE users SET calendar_token = ${token} WHERE id = ${c.get("user").id}`;
+  return c.json({ token });
+});
+
+api.delete("/calendar-feed", async (c) => {
+  await sql`UPDATE users SET calendar_token = NULL WHERE id = ${c.get("user").id}`;
+  return c.json({ ok: true });
+});
 
 api.patch("/plans/:id", async (c) => {
   await updatePlan(c.get("user"), c.req.param("id"), await body(c));

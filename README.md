@@ -39,7 +39,7 @@ are personal.
 - **Share**: send a recipe to someone in the household with a note (it lands in their "Shared with me", with a count of new ones), or turn on a public link (`/s/<token>`) that shows it read-only to anyone, without an account, until you turn it off.
 - **Several sources per recipe**: the blog, the video it comes from, "Grandma's notebook", each with its icon; filter the cookbook by source.
 - **Cook from it**: servings stepper that rescales quantities (`200 g` → `250 g`, `½` → `¾`), tick off ingredients and steps, the screen stays on.
-- **Plan recipes**: "Plan" on a recipe puts it on a day and a meal, with a note; the recipe lists your planned dates, to change or remove. Plans are private: nobody else sees yours. Claude can plan recipes too.
+- **Plan recipes into your calendar**: "Plan" on a recipe puts it on a day and a meal, with a note. The calendar itself is Google Calendar (Apple Calendar, Outlook): subscribe it to your private `.ics` address from Settings → Data (`/api/public/calendar/<token>.ics`, renewable or off), or download an `.ics` file. Plans are private: nobody else sees yours. Claude can plan recipes too.
 - **Equipment**: tick what a recipe needs (oven, blender, stand mixer, airfryer, Thermomix…; imports guess it from the steps), then filter "with" or "without" it ("sans four").
 - **Photos**: choose a file, paste one (button or `Ctrl+V` in the editor) or drop it on the photo.
 - **Find it again**: categories, tags, cuisines, "ready in under 30 min", favourites, "not cooked yet", and a `Ctrl+K` search that also looks inside ingredients ("poireaux").
