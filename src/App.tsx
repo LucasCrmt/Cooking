@@ -69,7 +69,7 @@ const isUrl = (s: string) => /^https?:\/\/\S+\.\S+$/i.test(s.trim());
 function Shell({ me, setMe, router, onSignedOut }: { me: Me; setMe: (me: Me) => void; router: ReturnType<typeof useRouter>; onSignedOut: () => void }) {
   const { settings, update } = useSettings();
   // Shared with the other bayfield.dev apps (prefs.bayfield.dev).
-  usePrefsSync({ theme: settings.theme, language: settings.language }, update);
+  usePrefsSync({ theme: settings.theme, customThemes: settings.customThemes, customTheme: settings.customTheme, language: settings.language }, update);
   const mobile = useMediaQuery(MOBILE_QUERY);
   const [drawer, setDrawer] = useState(false);
   const [mobilePanel, setMobilePanel] = useState(false);
