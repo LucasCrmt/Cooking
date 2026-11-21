@@ -1,7 +1,7 @@
 {
   "name": "cooking-server",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Cooking API, recipe importer and static host for the web build",
   "engines": {
