@@ -159,8 +159,37 @@
   color: var(--text-faint);
   border-radius: 4px;
 }
-.picker-stars button.on {
+.picker-stars:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* A star, filled all or half: the filled one on top, cut to its left half. */
+.stars .star-fill {
+  position: relative;
+  display: inline-flex;
+  color: inherit;
+}
+.stars .star-fill-on {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
   color: var(--star);
+  clip-path: inset(0 100% 0 0);
+}
+.picker-stars button.on .star-fill {
+  color: var(--star);
+}
+.star-fill.half .star-fill-on {
+  clip-path: inset(0 50% 0 0);
+}
+.star-fill.full .star-fill-on {
+  clip-path: none;
+}
+.star-value {
+  margin-left: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 .picker-stars button:hover {
   background: var(--hover);

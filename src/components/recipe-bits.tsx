@@ -65,34 +65,65 @@ export function RecipeImage({
 
 /** Read-only stars, or a picker when `onRate` is given (click the current value again to clear it). */
 export function Stars({ value, onRate, size = 14 }: { value: number | null; onRate?: (stars: number | null) => void; size?: number }) {
-  const { t } = useSettings();
+  const { t, f } = useSettings();
   const [hover, setHover] = useState<number | null>(null);
   const shown = hover ?? value ?? 0;
   if (!onRate) {
     if (!value) return null;
     return (
-      <span className="stars" title={t("ratingOf", { n: value })}>
+      <span className="stars" title={t("ratingOf", { n: f.decimal(value) })}>
         <Star size={size} filled />
-        <span>{value.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span>
+        <span>{f.decimal(value)}</span>
       </span>
     );
   }
+  /** The left half of a star is a half point: 3.5 is three stars and the left of the fourth. */
+  const at = (e: { clientX: number; currentTarget: HTMLElement }, n: number) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    return e.clientX - box.left < box.width / 2 ? n - 0.5 : n;
+  };
+  const rate = (v: number) => onRate(value === v ? null : v);
   return (
-    <span className="stars picker-stars" role="radiogroup" aria-label={t("yourRating")} onPointerLeave={() => setHover(null)}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          role="radio"
-          aria-checked={value === n}
-          className={n <= shown ? "on" : ""}
-          title={t("ratingOf", { n })}
-          onPointerEnter={() => setHover(n)}
-          onClick={() => onRate(value === n ? null : n)}
-        >
-          <Star size={size} filled={n <= shown} />
-        </button>
-      ))}
+    <span
+      className="stars picker-stars"
+      role="slider"
+      tabIndex={0}
+      aria-label={t("yourRating")}
+      aria-valuemin={0}
+      aria-valuemax={5}
+      aria-valuenow={value ?? 0}
+      aria-valuetext={value ? t("ratingOf", { n: f.decimal(value) }) : t("notRated")}
+      onPointerLeave={() => setHover(null)}
+      onKeyDown={(e) => {
+        const step = e.key === "ArrowRight" || e.key === "ArrowUp" ? 0.5 : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -0.5 : 0;
+        if (!step) return;
+        e.preventDefault();
+        const next = Math.min(5, Math.max(0, (value ?? 0) + step));
+        onRate(next || null);
+      }}
+    >
+      {[1, 2, 3, 4, 5].map((n) => {
+        const fill = shown >= n ? "full" : shown >= n - 0.5 ? "half" : "";
+        return (
+          <button
+            key={n}
+            type="button"
+            tabIndex={-1}
+            className={fill ? "on" : ""}
+            title={t("ratingOf", { n: f.decimal(hover !== null && Math.ceil(hover) === n ? hover : n) })}
+            onPointerMove={(e) => setHover(at(e, n))}
+            onClick={(e) => rate(at(e, n))}
+          >
+            <span className={`star-fill ${fill}`}>
+              <Star size={size} />
+              <span className="star-fill-on">
+                <Star size={size} filled />
+              </span>
+            </span>
+          </button>
+        );
+      })}
+      {value !== null && <span className="star-value tabular">{f.decimal(value)}</span>}
     </span>
   );
 }

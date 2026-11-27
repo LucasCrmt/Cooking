@@ -257,12 +257,22 @@ api.put("/recipes/:id/favorite", async (c) => {
 api.put("/recipes/:id/rating", async (c) => {
   const user = c.get("user");
   const r = await recipeOr404(c);
-  const stars = int((await body(c)).stars, 1, 5);
-  if (stars === null) await sql`DELETE FROM ratings WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
-  else
+  const v = (await body(c)).stars;
+  // By halves: 3.5, 4.5.
+  const stars = v === null || v === undefined || v === "" ? null : Math.round(Number(v) * 2) / 2;
+  if (stars !== null && !(stars >= 0.5 && stars <= 5)) throw bad("A rating goes from 0.5 to 5 stars");
+  if (stars === null) {
+    await sql`DELETE FROM ratings WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
+    // And taking the rating back takes back "I cooked it" with it.
+    await sql`DELETE FROM cooked WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
+  } else {
     await sql`
       INSERT INTO ratings (user_id, recipe_id, stars) VALUES (${user.id}, ${r.id}, ${stars})
       ON CONFLICT (user_id, recipe_id) DO UPDATE SET stars = excluded.stars`;
+    // Rating it means you made it: it's marked as cooked (and leaves your "À faire").
+    await sql`INSERT INTO cooked (user_id, recipe_id) VALUES (${user.id}, ${r.id}) ON CONFLICT DO NOTHING`;
+    await sql`DELETE FROM todo WHERE user_id = ${user.id} AND recipe_id = ${r.id}`;
+  }
   return c.json({ ok: true });
 });
 

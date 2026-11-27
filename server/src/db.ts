@@ -198,6 +198,11 @@ const MIGRATIONS: string[] = [
     tags = (SELECT coalesce(array_agg(t ORDER BY i), '{}') FROM unnest(r.tags) WITH ORDINALITY AS x(t, i) WHERE t NOT IN (SELECT tag FROM diet_tags))
   WHERE r.tags && (SELECT array_agg(tag) FROM diet_tags);
   `,
+  /* 11: half stars (3.5, 4.5): a rating goes from 0.5 to 5, by halves */ `
+  ALTER TABLE ratings DROP CONSTRAINT IF EXISTS ratings_stars_check;
+  ALTER TABLE ratings ALTER COLUMN stars TYPE real;
+  ALTER TABLE ratings ADD CONSTRAINT ratings_stars_check CHECK (stars BETWEEN 0.5 AND 5 AND stars * 2 = round(stars * 2));
+  `,
 ];
 
 export async function migrate() {

@@ -220,7 +220,7 @@ export function RecipePage({ id }: { id: string }) {
                   )}
                 </div>
                 <div className="recipe-actions">
-                  <Stars value={r.myRating} size={18} onRate={(stars) => void act("/rating", "PUT", { stars })} />
+                  <Stars value={r.myRating} size={18} onRate={(stars) => void act("/rating", "PUT", { stars }, stars !== null && !r.lastCookedAt ? t("cookedSaved") : undefined)} />
                   {r.ratingCount > 1 && r.rating && <span className="muted small">{t("averageOf", { avg: f.decimal(r.rating), n: r.ratingCount })}</span>}
                   <div className="toolbar-spacer" />
                   <button
