@@ -89,6 +89,8 @@ export interface RecipeFields {
   author: string;
   /** What it needs: keys such as "oven" (see lib/equipment.ts). */
   equipment: string[];
+  /** The diets it suits: keys such as "vegetarian" (see lib/diets.ts). */
+  diets: string[];
 }
 
 /** One row of GET /app/recipes. */
@@ -101,6 +103,7 @@ export interface RecipeSummary {
   cuisine: string;
   tags: string[];
   equipment: string[];
+  diets: string[];
   servings: number | null;
   prepMinutes: number | null;
   cookMinutes: number | null;

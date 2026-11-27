@@ -5,18 +5,19 @@ import { useMemo, type MouseEvent } from "react";
 import { api, type RecipeSummary } from "../lib/api";
 import { useApp } from "../lib/app";
 import { blankRecipe, filterRecipes, totalOf } from "../lib/recipes";
+import { dietName } from "../lib/diets";
 import type { ListName } from "../lib/router";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
 import { useToast } from "./common";
 import { BookOpen, Clock, Download, Heart, LayoutGrid, ListIcon, Plus, Search, X } from "./icons";
-import { RecipeImage, Stars } from "./recipe-bits";
+import { DietLabels, RecipeImage, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
 
 const TITLES: Record<ListName, StringKey> = { recipes: "allRecipes", favorites: "favorites", todo: "todoList", untried: "untried" };
 
 export function RecipesPage({ list }: { list: ListName }) {
-  const { t, settings, update } = useSettings();
+  const { t, lang, settings, update } = useSettings();
   const { recipes, query, setQuery, openImport, openEditor, server } = useApp();
   const shown = useMemo(() => (recipes ? filterRecipes(recipes, list, query) : undefined), [recipes, list, query]);
   const chips: [string, string][] = [
@@ -24,6 +25,7 @@ export function RecipesPage({ list }: { list: ListName }) {
     ["tag", query.tag],
     ["cuisine", query.cuisine],
     ["time", query.time && t("underMinutes", { n: query.time })],
+    ["diet", query.diet && query.diet.split(",").map((d) => dietName(d, lang)).join(" · ")],
   ].filter((c): c is [string, string] => !!c[1]);
 
   return (
@@ -142,6 +144,7 @@ function RecipeCard({ recipe: r }: { recipe: RecipeSummary }) {
             {r.category && <span>{r.category}</span>}
             <Stars value={r.rating} size={12} />
           </div>
+          <DietLabels keys={r.diets} small />
         </div>
       </a>
       <FavoriteButton recipe={r} className="recipe-card-fav" />
@@ -160,6 +163,9 @@ function RecipeRow({ recipe: r }: { recipe: RecipeSummary }) {
         <span className="recipe-row-title">
           <span>{r.title}</span>
           <span className="muted small">{[r.category, r.sources[0]?.name].filter(Boolean).join(" · ")}</span>
+        </span>
+        <span className="hide-mobile">
+          <DietLabels keys={r.diets} small />
         </span>
         <Stars value={r.rating} size={12} />
         <span className="muted small tabular hide-mobile">{total !== null ? f.minutes(total) : ""}</span>

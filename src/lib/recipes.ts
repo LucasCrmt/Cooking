@@ -1,5 +1,6 @@
 // Recipe helpers: scaling quantities, filtering and sorting the cookbook, blank drafts.
 
+import { dietName, suits } from "./diets";
 import type { RecipeFields, RecipeSummary } from "./api";
 import type { ListName } from "./router";
 import type { Lang } from "./i18n";
@@ -72,6 +73,7 @@ export const blankRecipe = (): RecipeFields => ({
   sources: [],
   author: "",
   equipment: [],
+  diets: [],
 });
 
 export const totalOf = (r: Pick<RecipeSummary, "totalMinutes" | "prepMinutes" | "cookMinutes">) =>
@@ -92,6 +94,7 @@ export function filterRecipes(all: RecipeSummary[], list: ListName, q: Record<st
   // "with": needs all of these; "without": needs none of these ("sans four").
   const withEq = (q.equipment ?? "").split(",").filter(Boolean);
   const withoutEq = (q.without ?? "").split(",").filter(Boolean);
+  const diets = (q.diet ?? "").split(",").filter(Boolean);
   const out = all.filter(
     (r) =>
       (list !== "favorites" || r.favorite) &&
@@ -104,7 +107,8 @@ export function filterRecipes(all: RecipeSummary[], list: ListName, q: Record<st
       (!maxTime || ((totalOf(r) ?? Infinity) <= maxTime)) &&
       withEq.every((e) => r.equipment.includes(e)) &&
       !withoutEq.some((e) => r.equipment.includes(e)) &&
-      (!text || fold(`${r.title} ${r.description} ${r.tags.join(" ")} ${r.category} ${r.cuisine}`).includes(text)),
+      diets.every((d) => suits(r.diets, d)) &&
+      (!text || fold(`${r.title} ${r.description} ${r.tags.join(" ")} ${r.category} ${r.cuisine} ${r.diets.map((d) => `${dietName(d, "fr")} ${dietName(d, "en")}`).join(" ")}`).includes(text)),
   );
   const sort = (q.sort as SortKey) || "recent";
   const by: Record<SortKey, (a: RecipeSummary, b: RecipeSummary) => number> = {

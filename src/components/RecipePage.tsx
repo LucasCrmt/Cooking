@@ -14,7 +14,7 @@ import { fromDay } from "../lib/dates";
 import { Dropdown as Floating } from "./pickers";
 import { Calendar, CircleCheck, Clock, ExternalLink, Flame, ListTodo, Minus, MoreHorizontal, Pencil, Plus, Printer, Share, Square, SquareCheck, Trash, Users } from "./icons";
 import { FavoriteButton } from "./RecipesPage";
-import { EquipmentList, RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
+import { DietLabels, EquipmentList, RecipeImage, SourceIcon, SourceList, Stars } from "./recipe-bits";
 import { Toolbar } from "./Toolbar";
 
 export function RecipePage({ id }: { id: string }) {
@@ -73,6 +73,7 @@ export function RecipePage({ id }: { id: string }) {
         sources: r.sources,
         author: r.author,
         equipment: r.equipment,
+        diets: r.diets,
       },
       currentImage: r.hasImage ? imageSrc(r) : null,
     });
@@ -178,6 +179,7 @@ export function RecipePage({ id }: { id: string }) {
                 {(r.category || r.cuisine) && <div className="recipe-kicker">{[r.category, r.cuisine].filter(Boolean).join(" · ")}</div>}
                 <h1>{r.title}</h1>
                 {r.description && <p className="recipe-description">{r.description}</p>}
+                <DietLabels keys={r.diets} onPick={(key) => navigate({ name: "recipes" }, { diet: key })} />
                 <div className="recipe-facts">
                   {total !== null && (
                     <span className="fact">

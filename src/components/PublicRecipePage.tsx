@@ -6,7 +6,7 @@ import { api, type PublicRecipe } from "../lib/api";
 import { headingText, isHeading, totalOf } from "../lib/recipes";
 import { useSettings } from "../lib/settings";
 import { ChefHat, Clock, Minus, Plus, Users } from "./icons";
-import { EquipmentList, RecipeImage, SourceList } from "./recipe-bits";
+import { DietLabels, EquipmentList, RecipeImage, SourceList } from "./recipe-bits";
 import { Ingredient, StepList, toggle } from "./RecipePage";
 
 export function PublicRecipePage({ token }: { token: string }) {
@@ -86,6 +86,7 @@ export function PublicRecipePage({ token }: { token: string }) {
                 </span>
               )}
             </div>
+            <DietLabels keys={r.diets ?? []} />
             {r.equipment.length > 0 && <EquipmentList keys={r.equipment} />}
             {r.tags.length > 0 && (
               <div className="tag-list">

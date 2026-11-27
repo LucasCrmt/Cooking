@@ -16,6 +16,7 @@ import { HttpError, bad } from "./http.ts";
 import { cleanUrl, kindOf, parseCaption, sourceName, type Source } from "./caption.ts";
 import { looksLikeTemplate, parseTemplate, unescapeMarkdown } from "./template.ts";
 import { detectEquipment, equipmentInput, equipmentKey } from "./equipment.ts";
+import { dietsFromTags, dietsInput } from "./diets.ts";
 
 export interface RecipeDraft {
   title: string;
@@ -35,6 +36,8 @@ export interface RecipeDraft {
   author: string;
   /** Keys such as "oven" (see equipment.ts), guessed from the recipe's words when not given. */
   equipment: string[];
+  /** Keys such as "vegetarian" (see diets.ts): the source's, and the tags that name one. */
+  diets: string[];
   imageUrl: string | null;
 }
 
@@ -459,6 +462,10 @@ function tidy(d: RecipeDraft): RecipeDraft {
   if (!d.totalMinutes && (d.prepMinutes || d.cookMinutes)) d.totalMinutes = (d.prepMinutes ?? 0) + (d.cookMinutes ?? 0);
   // What the recipe says it needs, added to what the source listed.
   d.equipment = [...new Set([...d.equipment, ...detectEquipment([...d.steps, ...d.ingredients, d.notes].join("\n"))])];
+  // Tags such as "végétarien" or "#vegan" are the diet label instead.
+  const split = dietsFromTags(d.tags);
+  d.tags = split.tags;
+  d.diets = dietsInput([...d.diets, ...split.diets]);
   return d;
 }
 
@@ -499,6 +506,7 @@ function fromCaption(text: string, opts: { url: string | null; fallbackTitle?: s
     sources: opts.url ? [{ url: opts.url, name: sourceName(opts.url, opts.site, opts.author), kind: kindOf(opts.url) }] : [],
     author: opts.author ?? "",
     equipment: [],
+    diets: [],
     imageUrl: opts.imageUrl ?? null,
   };
   tidy(draft);
@@ -582,6 +590,7 @@ export async function importRecipe(raw: string, depth = 0): Promise<{ draft: Rec
       sources: [{ url: pageSource, name: siteName(url, html), kind }],
       author: "",
       equipment: [],
+      diets: [],
       imageUrl: ogImage,
     };
   }
@@ -620,6 +629,8 @@ function draftFromRecipe(
     author: names(recipe.author),
     // schema.org "tool": HowToTool objects or names.
     equipment: equipmentInput(asArray(recipe.tool).map((x) => (typeof x === "string" ? x : x && typeof x === "object" ? clean((x as Record<string, unknown>).name, 40) : ""))),
+    // schema.org "suitableForDiet": "https://schema.org/VeganDiet"…
+    diets: dietsInput(asArray(recipe.suitableForDiet).map((x) => (typeof x === "string" ? x : x && typeof x === "object" ? String((x as Record<string, unknown>)["@id"] ?? "") : ""))),
     imageUrl: imageUrl(recipe.image, at.url) ?? at.fallbackImage ?? null,
   };
 }
@@ -700,6 +711,7 @@ function fromTemplate(text: string, rawUrl: string | null): { draft: RecipeDraft
     sources: sources.slice(0, 12),
     author: t.author,
     equipment: equipmentInput(known),
+    diets: [],
     imageUrl: t.imageUrl,
   };
   tidy(draft);

@@ -11,6 +11,7 @@ import { cleanUrl, kindOf, sourceName, type Source } from "./caption.ts";
 import { RELEASES_URL, updateStatus } from "./updates.ts";
 import { USERNAME, getUser, meView, type User } from "./users.ts";
 import { detectEquipment, equipmentInput } from "./equipment.ts";
+import { dietsInput } from "./diets.ts";
 import { createPlan, deletePlan, exportPlans, listPlans, updatePlan, upcomingPlans } from "./plans.ts";
 import { icsCalendar } from "./ics.ts";
 
@@ -38,6 +39,7 @@ export interface RecipeRow {
   sources: Source[];
   author: string;
   equipment: string[];
+  diets: string[];
   hasImage: boolean;
   imageVersion: number;
   createdAt: Date;
@@ -90,6 +92,7 @@ export function recipeInput(b: Record<string, unknown>) {
     sources: sql.json((Array.isArray(b.sources) ? b.sources : []).slice(0, 12).map(sourceInput).filter((s): s is Source => !!s) as never),
     author: str(b.author, 100),
     equipment: equipmentInput(b.equipment),
+    diets: dietsInput(b.diets),
   };
 }
 
@@ -151,7 +154,7 @@ export async function saveImage(recipeId: string, image: { mime: string; data: B
 api.get("/recipes", async (c) => {
   const user = c.get("user");
   const rows = await sql`
-    SELECT r.id, r.user_id, r.title, r.description, r.category, r.cuisine, r.tags, r.equipment, r.servings, r.prep_minutes,
+    SELECT r.id, r.user_id, r.title, r.description, r.category, r.cuisine, r.tags, r.equipment, r.diets, r.servings, r.prep_minutes,
            r.cook_minutes, r.total_minutes, r.sources, r.has_image, r.image_version, r.created_at, r.updated_at,
            cardinality(r.ingredients)::int AS ingredient_count,
            (f.user_id IS NOT NULL) AS favorite,
@@ -486,7 +489,7 @@ api.get("/export", async (c) => {
   const mine = c.req.query("mine") === "1";
   const recipes = await sql`
     SELECT title, description, category, cuisine, tags, servings, servings_label, prep_minutes, cook_minutes, total_minutes,
-           ingredients, steps, notes, equipment, sources, author, created_at, updated_at
+           ingredients, steps, notes, equipment, diets, sources, author, created_at, updated_at
     FROM recipes ${mine ? sql`WHERE user_id = ${user.id}` : sql``} ORDER BY created_at`;
   c.header("Content-Disposition", `attachment; filename="recipes-${new Date().toISOString().slice(0, 10)}.json"`);
   return c.json({ app: "cooking", version: APP_VERSION, exportedAt: new Date(), recipes });

@@ -13,6 +13,7 @@ title:
 category:
 cuisine:
 tags: []
+regime: []
 servings: 4 personnes
 prep_time: 15 min
 cook_time: 30 min
@@ -50,6 +51,7 @@ title:
 category:
 cuisine:
 tags: []
+diet: []
 servings: 4 servings
 prep_time: 15 min
 cook_time: 30 min
@@ -89,7 +91,7 @@ export function aiPrompt(lang: Lang): string {
   const intro =
     lang === "fr"
       ? `Écris la recette ci-dessous (ou celle dont je te parle) en Markdown, exactement dans ce modèle, en français :
-- en-tête entre --- : title, category (une parmi : ${CATEGORIES.fr.join(", ")}), cuisine (une parmi : ${CUISINES.fr.join(", ")}, ou autre), tags (3 à 6 mots-clés), servings (nombre et unité), prep_time, cook_time, total_time (en minutes ou heures), author et source si connus ;
+- en-tête entre --- : title, category (une parmi : ${CATEGORIES.fr.join(", ")}), cuisine (une parmi : ${CUISINES.fr.join(", ")}, ou autre), tags (3 à 6 mots-clés), regime (ceux qui conviennent, parmi : végétarien, vegan, pescétarien, sans gluten, sans lactose, sans fruits à coque ; sinon []), servings (nombre et unité), prep_time, cook_time, total_time (en minutes ou heures), author et source si connus ;
 - "## Matériel" : une ligne "- " par appareil nécessaire, parmi : ${EQUIPMENT.map((e) => e.fr).join(", ")} (rien d'autre : les ustensiles ordinaires vont dans les notes) ;
 - "## Ingrédients" : une ligne "- " par ingrédient avec sa quantité ; des sous-parties "### " si la recette en a ;
 - "## Préparation" : étapes numérotées, une action par étape ; des sous-parties "### " si besoin ;
@@ -98,7 +100,7 @@ Réponds seulement avec la recette, sans commentaire.
 
 Modèle :`
       : `Write the recipe below (or the one I describe) as Markdown, exactly in this template, in English:
-- front matter between ---: title, category (one of: ${CATEGORIES.en.join(", ")}), cuisine (one of: ${CUISINES.en.join(", ")}, or another), tags (3 to 6 keywords), servings (number and unit), prep_time, cook_time, total_time (in minutes or hours), author and source if known;
+- front matter between ---: title, category (one of: ${CATEGORIES.en.join(", ")}), cuisine (one of: ${CUISINES.en.join(", ")}, or another), tags (3 to 6 keywords), diet (those that apply, from: vegetarian, vegan, pescatarian, gluten-free, lactose-free, nut-free; else []), servings (number and unit), prep_time, cook_time, total_time (in minutes or hours), author and source if known;
 - "## Equipment": one "- " line per appliance needed, from: ${EQUIPMENT.map((e) => e.en).join(", ")} (nothing else: ordinary utensils go in the notes);
 - "## Ingredients": one "- " line per ingredient with its quantity; "### " subsections if the recipe has parts;
 - "## Method": numbered steps, one action each; "### " subsections if needed;

@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 import { imageSrc } from "../lib/api";
 import { hueOf } from "../lib/recipes";
 import { equipmentName, equipmentOrder } from "../lib/equipment";
+import { dietName, dietOrder } from "../lib/diets";
 import { useSettings } from "../lib/settings";
 import type { Source } from "../lib/api";
 import { BookOpen, ChefHat, Instagram, LinkIcon, Star, Utensils, Video, Youtube } from "./icons";
@@ -115,5 +116,27 @@ export function EquipmentList({ keys, onPick }: { keys: string[]; onPick?: (key:
         ),
       )}
     </div>
+  );
+}
+
+/** The diets a recipe suits ("Végétarien", "Sans gluten"): labels that filter the cookbook when `onPick` is given. */
+export function DietLabels({ keys, onPick, small }: { keys: string[]; onPick?: (key: string) => void; small?: boolean }) {
+  const { t, lang } = useSettings();
+  if (!keys.length) return null;
+  const sorted = [...keys].sort((a, b) => dietOrder(a) - dietOrder(b));
+  return (
+    <span className={`diet-labels${small ? " small" : ""}`} aria-label={t("diets")}>
+      {sorted.map((key) =>
+        onPick ? (
+          <button key={key} type="button" className={`diet-label ${key}`} title={t("recipesThatAre", { name: dietName(key, lang) })} onClick={() => onPick(key)}>
+            {dietName(key, lang)}
+          </button>
+        ) : (
+          <span key={key} className={`diet-label ${key}`}>
+            {dietName(key, lang)}
+          </span>
+        ),
+      )}
+    </span>
   );
 }

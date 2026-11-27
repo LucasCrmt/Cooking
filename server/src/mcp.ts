@@ -16,6 +16,7 @@ import { HttpError, rateLimit } from "./http.ts";
 import { canEdit, createRecipe, imageInput, recipeInput, saveImage, type RecipeRow } from "./api.ts";
 import { importRecipe, importText } from "./importer.ts";
 import { EQUIPMENT } from "./equipment.ts";
+import { DIETS } from "./diets.ts";
 import { MEALS, createPlan, deletePlan, listPlans } from "./plans.ts";
 import { getUser, type User } from "./users.ts";
 
@@ -47,6 +48,11 @@ const recipeProps = {
     type: "array",
     items: { type: "string", enum: [...EQUIPMENT] },
     description: "The appliances the recipe needs (to filter by): oven, microwave, stovetop, blender, hand-blender, food-processor, stand-mixer, hand-mixer, airfryer, cooking-robot (Thermomix, Cookeo), pressure-cooker, slow-cooker, steamer, barbecue, fryer, waffle-iron, crepe-maker, ice-cream-maker, bread-machine",
+  },
+  diets: {
+    type: "array",
+    items: { type: "string", enum: [...DIETS] },
+    description: "The diets it suits (shown on the recipe and to filter by): vegetarian, vegan, pescatarian, gluten-free, lactose-free, nut-free. Vegan recipes need only \"vegan\"",
   },
   sources: {
     type: "array",
@@ -167,8 +173,8 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
       const q = typeof a.query === "string" ? a.query.trim().slice(0, 100) : "";
       const limit = Math.min(100, Math.max(1, Number(a.limit) || 20));
       const like = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-      const rows = await sql<{ id: string; title: string; category: string; cuisine: string; tags: string[]; equipment: string[]; totalMinutes: number | null; servings: number | null; match: string | null }[]>`
-        SELECT id, title, category, cuisine, tags, equipment, total_minutes, servings,
+      const rows = await sql<{ id: string; title: string; category: string; cuisine: string; tags: string[]; equipment: string[]; diets: string[]; totalMinutes: number | null; servings: number | null; match: string | null }[]>`
+        SELECT id, title, category, cuisine, tags, equipment, diets, total_minutes, servings,
           ${q ? sql`(SELECT i FROM unnest(ingredients) i WHERE i ILIKE ${like} LIMIT 1)` : sql`NULL`} AS match
         FROM recipes
         ${
@@ -188,6 +194,7 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
           cuisine: r.cuisine || undefined,
           tags: r.tags.length ? r.tags : undefined,
           equipment: r.equipment.length ? r.equipment : undefined,
+          diets: r.diets.length ? r.diets : undefined,
           totalMinutes: minutes(r.totalMinutes),
           servings: r.servings ?? undefined,
           matchingIngredient: r.match ?? undefined,
@@ -220,6 +227,7 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
         steps: r.steps,
         notes: r.notes,
         equipment: r.equipment,
+        diets: r.diets,
         author: r.author,
         sources: r.sources,
         hasPhoto: r.hasImage,
@@ -299,6 +307,7 @@ async function callTool(user: User, name: string, a: Record<string, unknown>): P
         sources: r.sources,
         author: r.author,
         equipment: r.equipment,
+        diets: r.diets,
       };
       const merged = { ...current, ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) };
       const input = recipeInput(merged);

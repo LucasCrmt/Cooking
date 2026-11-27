@@ -181,6 +181,23 @@ const MIGRATIONS: string[] = [
         show up in Google Calendar, Apple Calendar or Outlook */ `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_token text UNIQUE;
   `,
+  /* 10: the diets a recipe suits (keys such as 'vegetarian', 'vegan'; see diets.ts), shown on the
+         cards and to filter by. Tags that named one become the label */ `
+  ALTER TABLE recipes ADD COLUMN diets text[] NOT NULL DEFAULT '{}';
+  CREATE INDEX recipes_diets ON recipes USING gin (diets);
+  CREATE TEMP TABLE diet_tags (tag text, diet text) ON COMMIT DROP;
+  INSERT INTO diet_tags VALUES
+    ('végétarien', 'vegetarian'), ('vegetarien', 'vegetarian'), ('végétarienne', 'vegetarian'), ('vegetarian', 'vegetarian'), ('veggie', 'vegetarian'), ('végé', 'vegetarian'),
+    ('vegan', 'vegan'), ('végan', 'vegan'), ('végane', 'vegan'), ('végétalien', 'vegan'), ('vegetalien', 'vegan'), ('plant based', 'vegan'),
+    ('pescatarian', 'pescatarian'), ('pescétarien', 'pescatarian'),
+    ('sans gluten', 'gluten-free'), ('gluten free', 'gluten-free'), ('gluten-free', 'gluten-free'),
+    ('sans lactose', 'lactose-free'), ('lactose free', 'lactose-free'), ('dairy free', 'lactose-free'), ('sans lait', 'lactose-free'),
+    ('sans noix', 'nut-free'), ('nut free', 'nut-free');
+  UPDATE recipes r SET
+    diets = (SELECT array_agg(DISTINCT d.diet) FROM unnest(r.tags) t JOIN diet_tags d ON d.tag = t),
+    tags = (SELECT coalesce(array_agg(t ORDER BY i), '{}') FROM unnest(r.tags) WITH ORDINALITY AS x(t, i) WHERE t NOT IN (SELECT tag FROM diet_tags))
+  WHERE r.tags && (SELECT array_agg(tag) FROM diet_tags);
+  `,
 ];
 
 export async function migrate() {

@@ -7,6 +7,7 @@ import { useApp, type EditorState } from "../lib/app";
 import { useApi } from "../lib/hooks";
 import { CATEGORIES, CUISINES, counts, sourceLabel, type SortKey } from "../lib/recipes";
 import { EQUIPMENT, equipmentName, equipmentOrder } from "../lib/equipment";
+import { DIETS, dietName, suits } from "../lib/diets";
 import { useSettings } from "../lib/settings";
 import type { StringKey } from "../lib/i18n";
 import { useToast } from "./common";
@@ -63,11 +64,15 @@ function FiltersPanel() {
     else if (withEq.includes(key)) wo.push(key);
     setQuery({ equipment: w.join(",") || undefined, without: wo.join(",") || undefined });
   };
+  const diets = (query.diet ?? "").split(",").filter(Boolean);
+  const toggleDiet = (key: string) => setQuery({ diet: (diets.includes(key) ? diets.filter((k) => k !== key) : [...diets, key]).join(",") || undefined });
+  // Every diet some recipe suits, in the list's order, with how many recipes suit it.
+  const dietCounts = useMemo(() => DIETS.map((d) => [d.key, all.filter((r) => suits(r.diets, d.key)).length] as const).filter(([, n]) => n > 0), [all]);
   const categories = useMemo(() => counts(all, (r) => [r.category]), [all]);
   const cuisines = useMemo(() => counts(all, (r) => [r.cuisine]), [all]);
   const tags = useMemo(() => counts(all, (r) => r.tags), [all]);
   const sources = useMemo(() => counts(all, (r) => [...new Set(r.sources.map(sourceLabel))]), [all]);
-  const active = ["category", "cuisine", "tag", "time", "source", "equipment", "without"].filter((k) => query[k]);
+  const active = ["category", "cuisine", "tag", "time", "source", "equipment", "without", "diet"].filter((k) => query[k]);
 
   const options = (key: string, values: [string, number][], label?: (v: string) => string) => (
     <div className="filter-options">
@@ -110,6 +115,20 @@ function FiltersPanel() {
           (m) => t("underMinutes", { n: f.minutes(Number(m)) }),
         )}
       </section>
+      {dietCounts.length > 0 && (
+        <section className="panel-section">
+          <span className="panel-subtitle">{t("diets")}</span>
+          <div className="filter-options">
+            {dietCounts.map(([key, n]) => (
+              <button key={key} className={`filter-option${diets.includes(key) ? " active" : ""}`} onClick={() => toggleDiet(key)}>
+                <span className="filter-check">{diets.includes(key) && <Check size={12} />}</span>
+                <span className="filter-name">{dietName(key, lang)}</span>
+                <span className="filter-time">{n}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {equipment.length > 0 && (
         <section className="panel-section">
           <span className="panel-subtitle">{t("equipment")}</span>
@@ -182,6 +201,7 @@ function DetailsPanel({ id }: { id: string }) {
           {row("cook", r.cookMinutes ? f.minutes(r.cookMinutes) : null)}
           {row("total", r.totalMinutes ? f.minutes(r.totalMinutes) : null)}
           {row("servings", r.servings ? `${r.servings} ${r.servingsLabel}` : null)}
+          {row("diets", r.diets?.length ? r.diets.map((k) => dietName(k, lang)).join(", ") : null)}
           {row("equipment", r.equipment.length ? r.equipment.map((k) => equipmentName(k, lang)).join(", ") : null)}
           {r.sources.length > 0 && row("sources", <SourceList sources={r.sources} />)}
           {row("author", r.author)}
@@ -292,6 +312,8 @@ function RecipeEditor({ state }: { state: EditorState }) {
   // Sources: each a link and/or a name ("Le carnet de mamie"); the kind is worked out by the server.
   const [sources, setSources] = useState(init.sources.map((x) => ({ url: x.url ?? "", name: x.name, kind: x.kind })));
   const [equipment, setEquipment] = useState<string[]>(init.equipment ?? []);
+  const [diets, setDiets] = useState<string[]>(init.diets ?? []);
+  const toggleDiet = (key: string) => setDiets((list) => (list.includes(key) ? list.filter((k) => k !== key) : [...list, key]));
   const toggleEquipment = (key: string) => setEquipment((list) => (list.includes(key) ? list.filter((k) => k !== key) : [...list, key]));
   const detectEquipment = async () => {
     try {
@@ -380,6 +402,7 @@ function RecipeEditor({ state }: { state: EditorState }) {
       sources: sources.filter((x) => x.url.trim() || x.name.trim()).map((x) => ({ url: x.url.trim() || null, name: x.name.trim(), kind: x.kind })),
       author: init.author,
       equipment,
+      diets,
     };
     const image =
       photo.kind === "remote"
@@ -514,6 +537,19 @@ function RecipeEditor({ state }: { state: EditorState }) {
           {field("prepMin", <input className="text-field" type="number" min={0} value={form.prepMinutes} onChange={(e) => set({ prepMinutes: e.target.value })} />)}
           {field("cookMin", <input className="text-field" type="number" min={0} value={form.cookMinutes} onChange={(e) => set({ cookMinutes: e.target.value })} />)}
           {field("totalMin", <input className="text-field" type="number" min={0} value={form.totalMinutes} placeholder={String((toInt(form.prepMinutes) ?? 0) + (toInt(form.cookMinutes) ?? 0) || "")} onChange={(e) => set({ totalMinutes: e.target.value })} />)}
+        </div>
+
+        <div className="field">
+          <span>{t("diets")}</span>
+          <div className="equipment-picker">
+            {DIETS.map(({ key }) => (
+              <label key={key} className={`equipment-option${diets.includes(key) ? " active" : ""}`}>
+                <input type="checkbox" checked={diets.includes(key)} onChange={() => toggleDiet(key)} />
+                {diets.includes(key) && <Check size={12} />}
+                {dietName(key, lang)}
+              </label>
+            ))}
+          </div>
         </div>
 
         {field("ingredients", <textarea className="text-field mono" rows={8} value={form.ingredients} placeholder={t("ingredientsPlaceholder")} onChange={(e) => set({ ingredients: e.target.value })} />, t("ingredientsHint"))}

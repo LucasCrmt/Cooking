@@ -1142,3 +1142,49 @@ button.equipment-chip:hover {
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
+
+/* --- Diets ("Végétarien", "Sans gluten") --- */
+
+.diet-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.recipe-hero-text .diet-labels {
+  margin: 8px 0 4px;
+}
+.recipe-card-body .diet-labels {
+  margin-top: 6px;
+}
+.diet-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  /* Free-from labels: neutral. */
+  background: var(--hover);
+  color: var(--text);
+}
+.diet-labels.small .diet-label {
+  padding: 1px 7px;
+  font-size: 11px;
+}
+/* What you eat: green. */
+.diet-label.vegetarian,
+.diet-label.vegan,
+.diet-label.pescatarian {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+button.diet-label {
+  cursor: pointer;
+}
+button.diet-label:hover {
+  filter: brightness(0.95);
+  text-decoration: underline;
+}
